@@ -7,6 +7,5 @@ Team members are: Gaohong Liu, Jintao Jiang, Hengda Shi
 ## Setup
 
 dependencies can be installed with:
-````~~```bash
-pip install -r requirements.txt
+    pip install -r requirements.txt
 ```
