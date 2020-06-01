@@ -11,7 +11,7 @@ args = {
     "eps_init": 0.99,
     "eps_min": 0.2,
     "decay": 0.998,
-    "episodes": 1e6,
+    "episodes": 1e4,
     "render": False,
-    "reward_max": 80
+    "reward_max": 5
 }

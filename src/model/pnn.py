@@ -8,10 +8,10 @@ import torch.nn.functional as F
 
 # basic construction block for PNN
 class PNNLinear(nn.Module):
-    def __init__(self, lid, columns, input_dim, output_dim):
+    def __init__(self, lid, cid, input_dim, output_dim):
         super(PNNLinear, self).__init__()
         self.lid = lid
-        self.columns = columns
+        self.cid = cid
         self.input_dim = input_dim
         self.output_dim = output_dim
 
@@ -30,18 +30,18 @@ class PNNLinear(nn.Module):
         # need lateral connection only if
         # 1. it is not the first column
         # 2. it is not the first layer
-        if len(self.columns) and self.lid > 0:
+        if self.cid and self.lid:
             self.u.extend([
                 nn.Linear(self.input_dim, self.output_dim)
-                for _ in range(self.columns)
+                for _ in range(self.cid)
             ])
             self.v.extend([
                 nn.Linear(self.input_dim, self.input_dim)
-                for _ in range(self.columns)
+                for _ in range(self.cid)
             ])
             self.alpha.extend([
                 nn.Parameter(torch.randn(1, dtype=float))
-                for _ in range(self.columns)
+                for _ in range(self.cid)
             ])
 
     def forward(self, X):
@@ -71,7 +71,7 @@ class PNN(nn.Module):
         # first layer pass
         h = [column[0](X) for column in self.columns]
         # rest layers pass
-        for k in range(self.nlayers):
+        for k in range(1, self.nlayers):
             h = [column[k](h[:i + 1]) for i, column in enumerate(self.columns)]
 
         # return latest output unless specified
@@ -81,7 +81,7 @@ class PNN(nn.Module):
     # add a column to the neural net
     def add(self, sizes):
         modules = [
-            PNNLinear(lid, self.columns, sizes[lid], sizes[lid + 1])
+            PNNLinear(lid, len(self.columns), sizes[lid], sizes[lid + 1])
             for lid in range(self.nlayers)
         ]
         self.columns.append(nn.ModuleList(modules))
