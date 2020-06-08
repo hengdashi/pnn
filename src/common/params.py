@@ -11,22 +11,26 @@ class Parameters:
         self.nlayers = 4
         # learning rate (default: 1e-3)
         self.lr = 1e-3
-        # discount factor for rewards (default: 0.9)
-        self.gamma = 0.9
+        # discount factor for rewards (default: 0.99)
+        self.gamma = 0.99
         # parameter for GAE (default: 1.0)
         self.tau = 1.0
-        # entropy coefficient (default: 0.01)
-        self.beta = 0.01
-        # number of local steps (default: 5)
-        self.nlsteps = 5
-        # number of global steps (default: 5e6)
-        self.ngsteps = 5e6
+        # entropy coefficient (default: 1e-2)
+        self.beta = 1e-2
+        # critic loss coef (default: 0.5)
+        self.critic_loss_coef = 0.5
+        # max grad norm (default: 40)
+        self.clip = 40
+        # number of local steps (default: 4)
+        self.nlsteps = 4
+        # number of global steps (default: 1e6)
+        self.ngsteps = 1e6
         # number of processes (default: 6)
-        self.nprocesses = 1
+        self.nprocesses = 6
         # number of steps between saving (default: 500)
         self.interval = 500
-        # maximum repetition steps in test phase (default: 200)
-        self.max_actions = 200
+        # maximum repetition steps in test phase (default: 100)
+        self.max_actions = 100
         # logging path (default: tensorboard/pnn)
         self.log_path = self.cwd / "tensorboard" / "pnn"
         # saving path (default: trained_models)
@@ -36,6 +40,6 @@ class Parameters:
         # use gpu (default: False)
         self.gpu = False
         # whether to render the frames or not (default: False)
-        self.render = True
+        self.render = False
         # seed (default: 123)
         self.seed = 123
