@@ -1,0 +1,144 @@
+\ProvidesPackage{beamerthemeUCLA}
+\selectcolormodel{rgb}
+\mode<presentation>
+
+\usecolortheme{ucla}
+
+%% headline
+\setbeamercolor{headline}{fg=uclaWhite, bg=uclaBlue}
+\setbeamercolor{title in headline}{fg=uclaWhite}
+\setbeamercolor{author in headline}{fg=uclaWhite}
+\setbeamercolor{institute in headline}{fg=uclaWhite}
+
+%% footline
+\setbeamercolor{footline}{fg=uclaWhite, bg=uclaBlue}
+\setbeamerfont{footline}{size=\small, series=\bf\tt}
+
+%% poster background and body text
+\setbeamercolor*{normal text}{fg=uclaBlack, bg=uclaLightestBlue2}
+
+%% block environment
+\setbeamercolor*{block body}{fg=uclaBlack, bg=uclaWhite}
+\setbeamercolor*{block title}{fg=uclaWhite, bg=uclaBlue}
+\setbeamerfont{block title}{size=\large, series=\bf}
+
+%% example environment
+\setbeamercolor*{example text}{fg=uclaWhite, bg=uclaBlue}
+\setbeamercolor*{example title}{fg=uclaWhite, bg=uclaBlue}
+\setbeamerfont{example title}{size=\large, series=\bf}
+\setbeamercolor*{example body}{fg=uclaWhite, bg=uclaBlue}
+
+%% alerted text
+\setbeamercolor{alerted text}{fg=uclaBlue}
+\setbeamerfont{alerted text}{series=\bf}
+
+\setbeamercolor{framesubtitle}{fg=uclaWhite, bg=uclaBlue}
+\setbeamercolor{author in head/foot}{fg=uclaWhite, bg=uclaBlue}
+\setbeamercolor{title in head/foot}{fg=uclaWhite, bg=uclaBlue}
+
+\setbeamercolor{structure}{fg=uclaBlue, bg=uclaWhite}
+
+%% separation lines
+\setbeamercolor{upper separation line head}{fg=uclaGold}
+\setbeamercolor{upper separation line head}{fg=uclaGold}
+\setbeamercolor{separation line}{bg=uclaGold}
+
+
+\setbeamertemplate{itemize items}[triangle]
+\setbeamertemplate{navigation symbols}{}  % no navigation on a poster
+
+%% blocks
+%% ======
+\setbeamertemplate{block begin}{
+  \vskip.75ex
+  \begin{beamercolorbox}[%
+    rounded=true,
+    shadow=false,
+    leftskip=1cm,
+    colsep*=.75ex,
+    sep=.5ex]{block title}%
+    \usebeamerfont*{block title}\insertblocktitle
+  \end{beamercolorbox}%
+  {\ifbeamercolorempty[bg]{block body}{}{\nointerlineskip\vskip-0.5pt}}%
+  \usebeamerfont{block body}%
+  \begin{beamercolorbox}[%
+    rounded=true,
+    shadow=false,
+    colsep*=.75ex,
+    sep=.75ex,
+    vmode]{block body}%
+    \ifbeamercolorempty[bg]{block body}{\vskip-.25ex}{\vskip-.75ex}\vbox{}%
+  }
+  \setbeamertemplate{block end}{
+  \end{beamercolorbox}
+}
+
+%% headline
+%% ========
+\setbeamertemplate{headline}{
+  \leavevmode
+
+  \begin{beamercolorbox}[wd=\paperwidth]{headline}
+    \begin{columns}[T]
+      \begin{column}{.01\paperwidth}
+      \end{column}
+
+      \begin{column}{.12\paperwidth}
+        \vskip1cm
+        \begin{center}
+          \includegraphics[width=0.7\linewidth]{logo-ucla-white}
+        \end{center}
+        \vskip1.5cm
+      \end{column}
+
+      \begin{column}{.02\paperwidth}
+      \end{column}
+
+      \begin{column}{.84\paperwidth}
+        \vskip4ex
+        \raggedright
+        \usebeamercolor{title in headline}{%
+          \color{fg}\textbf{\LARGE{\inserttitle}}\\[1ex]}
+        \usebeamercolor{author in headline}{%
+          \color{fg}\large{\insertauthor}\\[1ex]}
+        \usebeamercolor{institute in headline}{%
+          \color{fg}\large{\insertinstitute}\\[1ex]\vskip.5ex}
+      \end{column}
+
+      \begin{column}{.01\paperwidth}
+      \end{column}
+    \end{columns}
+  \end{beamercolorbox}
+
+  \begin{beamercolorbox}[wd=\paperwidth]{lower separation line head}
+    \rule{0pt}{12pt}
+  \end{beamercolorbox}
+}
+
+%% footline
+%% ========
+\setbeamertemplate{footline}{
+  \begin{beamercolorbox}[wd=\paperwidth]{upper separation line foot}
+    \rule{0pt}{6pt}
+  \end{beamercolorbox}
+
+  \leavevmode%
+  \begin{beamercolorbox}[%
+    ht=3ex,  % 4ex
+    leftskip=1cm,
+    rightskip=1cm]{author in head/foot}%
+    % \texttt{your URL}  %% uncomment this to insert text on the left
+    \hfill
+    % \texttt{your email}  %% uncomment this to insert text on the right
+    \vskip1ex
+  \end{beamercolorbox}
+  \vskip0pt%
+  \begin{beamercolorbox}[wd=\paperwidth]{lower separation line foot}
+    \rule{0pt}{2pt}
+  \end{beamercolorbox}
+}
+
+%% uncomment to show the grid
+%% \beamertemplategridbackground[1cm]
+
+\mode<all>
