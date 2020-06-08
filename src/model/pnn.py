@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,7 +41,7 @@ class PNNLinear(nn.Module):
                 for _ in range(self.cid)
             ])
             self.alpha.extend([
-                nn.Parameter(torch.randn(1, dtype=float))
+                nn.Parameter(torch.Tensor(np.random.choice([1e0, 1e-1, 1e-2])))
                 for _ in range(self.cid)
             ])
 
@@ -60,6 +61,60 @@ class PNNLinear(nn.Module):
         return F.relu(cur_out + prev_out)
 
 
+class PNNConv(nn.Module):
+    def __init__(self, cid, input_channel, output_dim):
+        super(PNNConv, self).__init__()
+
+        self.cid = cid
+        self.w = nn.ModuleList()
+        self.u = nn.ModuleList()
+        self.v = nn.ModuleList()
+        self.alpha = []
+
+        self.w.append(
+            nn.Conv2d(input_channel, 12, kernel_size=(8, 8), stride=(4, 4)))
+        self.w.append(nn.Conv2d(12, 12, kernel_size=4, stride=2))
+        self.w.append(nn.Conv2d(12, 12, kernel_size=(3, 4)))
+        conv_out_size = int(
+            np.prod(self._get_conv_out((input_channel, 210, 160))))
+        self.w.append(nn.Linear(conv_out_size, output_dim))
+        self.w.append(nn.Linear(conv_out_size, 1))
+
+        if self.cid:
+            # adapter layer
+            self.v.append(None)
+            self.v.append(nn.Conv2d(12, 1, kernel_size=1))
+            self.v.append(nn.Conv2d(12, 1, kernel_size=1))
+            self.v.append(nn.Conv2d(12, 1, kernel_size=1))
+
+            # alpha
+            self.alpha.append(None)
+            self.alpha.append(
+                nn.Parameter(torch.Tensor(np.random.choice([1e0, 1e-1,
+                                                            1e-2]))))
+            self.alpha.append(
+                nn.Parameter(torch.Tensor(np.random.choice([1e0, 1e-1,
+                                                            1e-2]))))
+            self.alpha.append(
+                nn.Parameter(torch.Tensor(np.random.choice([1e0, 1e-1,
+                                                            1e-2]))))
+
+            # lateral connection
+            self.u.append(None)
+            self.u.append(nn.Conv2d(1, 12, kernel_size=4, stride=2))
+            self.u.append(nn.Conv2d(1, 12, kernel_size=(3, 4)))
+            self.u.append(nn.Linear(conv_out_size, output_dim))
+            self.u.append(nn.Linear(conv_out_size, 1))
+
+    def _get_conv_out(self, shape, cid=3):
+        o = self.w[0](torch.zeros(1, *shape))
+        if cid == 2 or cid == 3:
+            o = self.w[1](o)
+        if cid == 3:
+            o = self.w[2](o)
+        return o.size()
+
+
 class PNN(nn.Module):
     # nlayers is the number of layers in one column
     def __init__(self, nlayers):
@@ -67,15 +122,18 @@ class PNN(nn.Module):
         self.nlayers = nlayers
         self.columns = nn.ModuleList()
 
-    def forward(self, X, cid=-1):
+    def forward(self, X):
         # first layer pass
         h = [column[0](X) for column in self.columns]
-        # rest layers pass
-        for k in range(1, self.nlayers):
+        # rest layers pass till last layer
+        for k in range(1, self.nlayers - 1):
             h = [column[k](h[:i + 1]) for i, column in enumerate(self.columns)]
 
+        h_actor = self.columns[len(self.columns) - 1][self.nlayers - 1](h)
+        h_critic = self.columns[len(self.columns) - 1][self.nlayers](h)
+
         # return latest output unless specified
-        return h[cid]
+        return h_actor, h_critic
 
     # sizes contains a list of layers' output size
     # add a column to the neural net
@@ -84,6 +142,10 @@ class PNN(nn.Module):
             PNNLinear(lid, len(self.columns), sizes[lid], sizes[lid + 1])
             for lid in range(self.nlayers)
         ]
+        # adding critic layer
+        modules.append(
+            PNNLinear(self.nlayers - 1, len(self.columns),
+                      sizes[self.nlayers - 1], 1))
         self.columns.append(nn.ModuleList(modules))
 
     # freeze previous columns

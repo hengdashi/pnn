@@ -1,30 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-import random
-from collections import deque
 import numpy as np
+import cv2
 
 
-class ReplayBuffer(object):
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.memory = deque(maxlen=self.capacity)
+def cv2_clipped_zoom(ori, factor):
+    h, w = ori.shape[:2]
+    h_new, w_new = int(h * factor), int(w * factor)
 
-    def store(self, state, action, reward, next_state, done):
-        state = np.expand_dims(state, 0)
-        next_state = np.expand_dims(next_state, 0)
-        self.memory.append([state, action, reward, next_state, done])
+    y1, x1 = max(0, h_new - h) // 2, max(0, w_new - w) // 2
+    y2, x2 = y1 + h, x1 + w
+    bbox = np.array([y1, x1, y2, x2])
+    bbox = (bbox / factor).astype(np.int)
+    y1, x1, y2, x2 = bbox
+    crop = ori[y1:y2, x1:x2]
 
-    def sample(self, batch_size):
-        batch = random.sample(self.memory, batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch)
+    h_resize, w_resize = min(h_new, h), min(w_new, w)
+    h1_pad, w1_pad = (h - h_resize) // 2, (w - w_resize) // 2
+    h2_pad, w2_pad = (h - h_resize) - h1_pad, (w - w_resize) - w1_pad
+    spec = [(h1_pad, h2_pad), (w1_pad, w2_pad)] + [(0, 0)] * (ori.ndim - 2)
 
-        return np.concatenate(states, 0), actions, rewards, np.concatenate(
-            next_states, 0), dones
-
-    def __len__(self):
-        return len(self.memory)
-
-    def clear(self):
-        self.memory.clear()
+    resize = cv2.resize(crop, (w_resize, h_resize))
+    resize = np.pad(resize, spec, mode='constant')
+    assert resize.shape[0] == h and resize.shape[1] == w
+    return resize
