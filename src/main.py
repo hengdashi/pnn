@@ -7,7 +7,7 @@ import torch.multiprocessing as _mp
 
 from model.pnn import PNN
 from model.optimizer import GlobalAdam
-from model.process import local_train, local_test
+from model.process import ltrain, ltest
 from common.params import Parameters
 from model.env import create_env
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     gmodel = PNN(nlayers=opt.nlayers)
     # TODO: try one environment for now
     gmodel.add([
-        allenvs[0].observation_space.shape[0], 128, 64, 32,
+        allenvs[0].observation_space.shape[0], 64, 32, 16,
         allenvs[0].action_space.n
     ])
 
@@ -43,14 +43,14 @@ if __name__ == "__main__":
     processes = []
     for pid in range(opt.nprocesses):
         if pid == 0:
-            process = mp.Process(target=local_train,
+            process = mp.Process(target=ltrain,
                                  args=(pid, opt, gmodel, optimizer, True))
         else:
-            process = mp.Process(target=local_train,
+            process = mp.Process(target=ltrain,
                                  args=(pid, opt, gmodel, optimizer))
         process.start()
         processes.append(process)
-    process = mp.Process(target=local_test, args=(opt.nprocesses, opt, gmodel))
+    process = mp.Process(target=ltest, args=(opt.nprocesses, opt, gmodel))
     process.start()
     processes.append(process)
     for process in processes:
