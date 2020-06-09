@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import time
+import timeit
 from collections import deque
 
 import torch
-import timeit
 import torch.nn.functional as F
 from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
@@ -128,8 +129,8 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
 
             optimizer.step()
 
-            if episode == int(opt.ngsteps / opt.nlsteps):
-                print("Training process {index} terminated")
+            if episode == opt.ngsteps // opt.nlsteps:
+                print("Training process {pid} terminated")
                 if save:
                     end_time = timeit.default_timer()
                     print(f"The code runs for {(end_time - start_time):.2f}")
@@ -147,6 +148,8 @@ def ltest(pid, opt, gmodel):
         allenvs[0].action_space.n
     ])
     lmodel.eval()
+
+    start_time = time.time()
 
     for env in allenvs:
         env.seed(opt.seed + pid)
@@ -174,6 +177,9 @@ def ltest(pid, opt, gmodel):
             if actions.count(actions[0]) == actions.maxlen:
                 done = True
             if done:
+                print(
+                    f"Time {time.strftime('%Hh %Mm %Ss', time.gmtime(time.time()-start_time))}, reward {reward_sum}, episode {step}"
+                )
                 step = 0
                 actions.clear()
                 state = envs[-1].reset()
