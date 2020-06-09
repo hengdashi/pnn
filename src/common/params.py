@@ -9,8 +9,8 @@ class Parameters:
         self.cwd = Path('.')
         # number of layers in PNN (default: 4)
         self.nlayers = 4
-        # learning rate (default: 1e-3)
-        self.lr = 1e-3
+        # learning rate (default: 1e-4)
+        self.lr = 1e-4
         # discount factor for rewards (default: 0.99)
         self.gamma = 0.99
         # parameter for GAE (default: 1.0)
@@ -22,7 +22,7 @@ class Parameters:
         # max grad norm (default: 40)
         self.clip = 40
         # number of local steps (default: 4)
-        self.nlsteps = 4
+        self.nlsteps = 20
         # number of global steps (default: 1e6)
         self.ngsteps = 1e6
         # number of processes (default: 6)

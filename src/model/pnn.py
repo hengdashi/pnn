@@ -128,12 +128,13 @@ class PNN(nn.Module):
         # rest layers pass till last layer
         for k in range(1, self.nlayers - 1):
             h = [column[k](h[:i + 1]) for i, column in enumerate(self.columns)]
+        h_list = [column[self.nlayers - 1](h) for column in self.columns]
 
-        h_actor = self.columns[len(self.columns) - 1][self.nlayers - 1](h)
+        h_actor = h_list[-1]
         h_critic = self.columns[len(self.columns) - 1][self.nlayers](h)
 
         # return latest output unless specified
-        return h_actor, h_critic
+        return h_actor, h_critic, h_list[:-1]
 
     # sizes contains a list of layers' output size
     # add a column to the neural net

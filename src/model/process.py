@@ -44,7 +44,7 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
             if save:
                 if episode % opt.interval == 0 and episode > 0:
                     torch.save(gmodel.state_dict(), opt.save_path / "pnn")
-                print(f"Process {pid}, Episode {episode}")
+                #  print(f"Process {pid}, Episode {episode}")
             episode += 1
             # 1. worker reset to global network
             lmodel.load_state_dict(gmodel.state_dict())
@@ -54,11 +54,17 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
             # interacting for n local steps
             for _ in range(opt.nlsteps):
                 step += 1
-                logits, value = lmodel(states)
+                logits, value, others = lmodel(states)
                 policy = F.softmax(logits, dim=-1)
                 log_policy = F.log_softmax(logits, dim=-1)
                 entropy = -(policy * log_policy).sum()
 
+                other_policies = [F.softmax(other, dim=-1) for other in others]
+                # take the best action for previous columns
+                other_actions = [
+                    torch.argmax(other_policy).item()
+                    for other_policy in other_policies
+                ]
                 #  print(
                 #  f"logits: {logits}, policy: {policy}, log_policy: {log_policy}"
                 #  )
@@ -68,13 +74,18 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
                 # 2. worker interacts with the environment
                 state, reward, done, _ = envs[-1].step(action)
                 state = torch.Tensor(state)
+                states = [
+                    torch.Tensor(env.step(other_action))
+                    for env, other_action in zip(envs[:-1], other_actions)
+                ]
+                states.append(state)
                 reward = max(min(reward, 1), -1)
 
                 done = True if step > opt.ngsteps else done
 
                 if done:
                     step = 0
-                    state = torch.Tensor(envs[-1].reset())
+                    states = [torch.Tensor(env.reset()) for env in envs]
 
                 values.append(value)
                 log_policies.append(log_policy)
@@ -89,7 +100,7 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
 
             R = torch.zeros((1, 1), dtype=torch.float)
             if not done:
-                _, R = lmodel(state)
+                _, R, _ = lmodel(states)
                 R = R.detach()
             values.append(R)
 
@@ -142,11 +153,6 @@ def ltest(pid, opt, gmodel):
     torch.manual_seed(opt.seed + pid)
     allenvs = create_env()
     lmodel = PNN(nlayers=opt.nlayers)
-    # TODO: might need to be changed for non ram version
-    lmodel.add([
-        allenvs[0].observation_space.shape[0], 64, 32, 16,
-        allenvs[0].action_space.n
-    ])
     lmodel.eval()
 
     start_time = time.time()
@@ -154,6 +160,11 @@ def ltest(pid, opt, gmodel):
     for env in allenvs:
         env.seed(opt.seed + pid)
     for i in range(len(allenvs)):
+        # TODO: might need to be changed for non ram version
+        lmodel.add([
+            allenvs[0].observation_space.shape[0], 64, 32, 16,
+            allenvs[0].action_space.n
+        ])
         envs = allenvs[:i + 1]
         states = [torch.Tensor(env.reset()) for env in envs]
         done = True
@@ -165,11 +176,23 @@ def ltest(pid, opt, gmodel):
                 lmodel.load_state_dict(gmodel.state_dict())
 
             with torch.no_grad():
-                logits, value = lmodel(states)
+                logits, value, others = lmodel(states)
             policy = F.softmax(logits, dim=-1)
             action = torch.argmax(policy).item()
+
+            other_policies = [F.softmax(other, dim=-1) for other in others]
+            # take the best action for previous columns
+            other_actions = [
+                torch.argmax(other_policy).item()
+                for other_policy in other_policies
+            ]
             state, reward, done, _ = envs[-1].step(action)
-            done = done or step > opt.ngsteps
+            states = [
+                torch.Tensor(env.step(other_action))
+                for env, other_action in zip(envs[:-1], other_actions)
+            ]
+            states.append(torch.Tensor(state))
+            done = done or step >= opt.ngsteps
             reward_sum += reward
             if opt.render:
                 envs[-1].render()
@@ -181,6 +204,6 @@ def ltest(pid, opt, gmodel):
                     f"Time {time.strftime('%Hh %Mm %Ss', time.gmtime(time.time()-start_time))}, reward {reward_sum}, episode {step}"
                 )
                 step = 0
+                reward_sum = 0
                 actions.clear()
-                state = envs[-1].reset()
-            state = torch.Tensor(state)
+                states = [torch.Tensor(env.reset()) for env in envs]
