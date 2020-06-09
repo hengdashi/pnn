@@ -19,13 +19,6 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
     writer = SummaryWriter(opt.log_path)
     allenvs = create_env()
     lmodel = PNN(nlayers=opt.nlayers)
-    # define sizes of each layer and add the columns
-    # TODO: might need to be changed for non ram version
-    # TODO: try only one environment for now
-    lmodel.add([
-        allenvs[0].observation_space.shape[0], 64, 32, 16,
-        allenvs[0].action_space.n
-    ])
     # turn to train mode
     lmodel.train()
 
@@ -33,6 +26,13 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
         env.seed(opt.seed + pid)
 
     for i in range(len(allenvs)):
+        # define sizes of each layer and add the columns
+        # TODO: might need to be changed for non ram version
+        # TODO: try only one environment for now
+        lmodel.add([
+            allenvs[0].observation_space.shape[0], 64, 32, 16,
+            allenvs[0].action_space.n
+        ])
         # get states
         envs = allenvs[:i + 1]
         states = [torch.Tensor(env.reset()) for env in envs]
@@ -50,6 +50,7 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
 
             log_policies, values, rewards, entropies = [], [], [], []
 
+            # interacting for n local steps
             for _ in range(opt.nlsteps):
                 step += 1
                 logits, value = lmodel(states)
