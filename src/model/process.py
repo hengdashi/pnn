@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import time
 import timeit
 from collections import deque
 
@@ -158,8 +157,6 @@ def ltest(pid, opt, gmodel):
     lmodel = PNN(nlayers=opt.nlayers)
     lmodel.eval()
 
-    start_time = time.time()
-
     for env in allenvs:
         env.seed(opt.seed + pid)
     for i in range(len(allenvs)):
@@ -207,13 +204,7 @@ def ltest(pid, opt, gmodel):
                     actions[0]) == actions.maxlen:
                 done = True
             if done:
-                t.set_postfix_str(
-                    f"Time {time.strftime('%Hh %Mm %Ss', time.gmtime(time.time()-start_time))}, Reward {reward_sum}, Episode {step}",
-                    refresh=False)
-                t.update(0)
-                #  print(
-                #  f"Time {time.strftime('%Hh %Mm %Ss', time.gmtime(time.time()-start_time))}, reward {reward_sum}, episode {step}"
-                #  )
+                t.set_postfix_str(f"Reward {reward_sum}, Episode {step}")
                 step = 0
                 reward_sum = 0
                 actions.clear()
