@@ -6,11 +6,11 @@ from pathlib import Path
 
 class Parameters:
     def __init__(self):
-        self.cwd = Path(__file__).absolute().parents[1]
+        self.cwd = Path(__file__).absolute().parents[2]
         # number of layers in PNN (default: 4)
         self.nlayers = 4
         # learning rate (default: 1e-4)
-        self.lr = 1e-4
+        self.lr = 1e-3
         # discount factor for rewards (default: 0.99)
         self.gamma = 0.99
         # parameter for GAE (default: 1.0)
