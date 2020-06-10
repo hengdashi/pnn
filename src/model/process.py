@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import time
 import timeit
 from collections import deque
 
@@ -7,7 +8,6 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
 
 from model.pnn import PNN
 from model.env import create_env
@@ -157,6 +157,8 @@ def ltest(pid, opt, gmodel):
     lmodel = PNN(nlayers=opt.nlayers)
     lmodel.eval()
 
+    start_time = time.time()
+
     for env in allenvs:
         env.seed(opt.seed + pid)
     for i in range(len(allenvs)):
@@ -171,9 +173,6 @@ def ltest(pid, opt, gmodel):
         step, reward_sum = 0, 0
         actions = deque(maxlen=opt.max_actions)
 
-        t = tqdm(total=float('inf'),
-                 desc=envs[-1].unwrapped.spec.id,
-                 unit='episode')
         while True:
             step += 1
             if done:
@@ -204,9 +203,10 @@ def ltest(pid, opt, gmodel):
                     actions[0]) == actions.maxlen:
                 done = True
             if done:
-                t.set_postfix_str(f"Reward {reward_sum}, Episode {step}")
+                print(
+                    f"Time {time.strftime('%Hh %Mm %Ss', time.gmtime(time.time()-start_time))}, "
+                    + "reward {reward_sum}, episode {step}")
                 step = 0
                 reward_sum = 0
                 actions.clear()
                 states = [torch.Tensor(env.reset()) for env in envs]
-        t.close()
