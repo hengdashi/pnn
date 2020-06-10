@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 from model.pnn import PNN
 from model.env import create_env
@@ -172,6 +173,10 @@ def ltest(pid, opt, gmodel):
         done = True
         step, reward_sum = 0, 0
         actions = deque(maxlen=opt.max_actions)
+
+        t = tqdm(total=float('inf'),
+                 desc=envs[-1].unwrapped.spec.id,
+                 unit='episode')
         while True:
             step += 1
             if done:
@@ -202,10 +207,15 @@ def ltest(pid, opt, gmodel):
                     actions[0]) == actions.maxlen:
                 done = True
             if done:
-                print(
-                    f"Time {time.strftime('%Hh %Mm %Ss', time.gmtime(time.time()-start_time))}, reward {reward_sum}, episode {step}"
-                )
+                t.set_postfix_str(
+                    f"Time {time.strftime('%Hh %Mm %Ss', time.gmtime(time.time()-start_time))}, Reward {reward_sum}, Episode {step}",
+                    refresh=False)
+                t.update(0)
+                #  print(
+                #  f"Time {time.strftime('%Hh %Mm %Ss', time.gmtime(time.time()-start_time))}, reward {reward_sum}, episode {step}"
+                #  )
                 step = 0
                 reward_sum = 0
                 actions.clear()
                 states = [torch.Tensor(env.reset()) for env in envs]
+        t.close()
