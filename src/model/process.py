@@ -143,7 +143,7 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
             optimizer.step()
 
             if episode == opt.ngsteps // opt.nlsteps:
-                print("Training process {pid} terminated")
+                print(f"Training process {pid} terminated")
                 if save:
                     end_time = timeit.default_timer()
                     print(f"The code runs for {(end_time - start_time):.2f}")

@@ -6,7 +6,7 @@ from pathlib import Path
 
 class Parameters:
     def __init__(self):
-        self.cwd = Path('.')
+        self.cwd = Path(__file__).absolute().parents[1]
         # number of layers in PNN (default: 4)
         self.nlayers = 4
         # learning rate (default: 1e-4)
@@ -23,10 +23,10 @@ class Parameters:
         self.clip = 40
         # number of local steps (default: 4)
         self.nlsteps = 20
-        # number of global steps (default: 1e6)
-        self.ngsteps = 1e6
+        # number of global steps (default: 1e7)
+        self.ngsteps = 1e7
         # number of processes (default: 6)
-        self.nprocesses = 6
+        self.nprocesses = 16
         # number of steps between saving (default: 500)
         self.interval = 500
         # maximum repetition steps in test phase (default: 100)
