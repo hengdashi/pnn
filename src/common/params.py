@@ -6,7 +6,7 @@ from pathlib import Path
 
 class Parameters:
     def __init__(self):
-        self.cwd = Path(__file__).absolute().parents[2]
+        self.cwd = Path(__file__).absolute().parents[1]
         # number of layers in PNN (default: 4)
         self.nlayers = 4
         # learning rate (default: 1e-4)
