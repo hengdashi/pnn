@@ -117,21 +117,28 @@ class PNNConv(nn.Module):
 
 class PNN(nn.Module):
     # nlayers is the number of layers in one column
-    def __init__(self, nlayers):
+    def __init__(self, nlayers, type='linear'):
         super(PNN, self).__init__()
         self.nlayers = nlayers
+        self.type = type
         self.columns = nn.ModuleList()
 
     def forward(self, X):
-        # first layer pass
-        h = [column[0](X) for column in self.columns]
-        # rest layers pass till last layer
-        for k in range(1, self.nlayers - 1):
-            h = [column[k](h[:i + 1]) for i, column in enumerate(self.columns)]
-        h_list = [column[self.nlayers - 1](h) for column in self.columns]
+        h_actor, h_critic, h_list = None, None, None
 
-        h_actor = h_list[-1]
-        h_critic = self.columns[len(self.columns) - 1][self.nlayers](h)
+        if self.type == 'linear':
+            # first layer pass
+            h = [column[0](X) for column in self.columns]
+            # rest layers pass till last layer
+            for k in range(1, self.nlayers - 1):
+                h = [
+                    column[k](h[:i + 1])
+                    for i, column in enumerate(self.columns)
+                ]
+            h_list = [column[self.nlayers - 1](h) for column in self.columns]
+
+            h_actor = h_list[-1]
+            h_critic = self.columns[len(self.columns) - 1][self.nlayers](h)
 
         # return latest output unless specified
         return h_actor, h_critic, h_list[:-1]
@@ -139,15 +146,18 @@ class PNN(nn.Module):
     # sizes contains a list of layers' output size
     # add a column to the neural net
     def add(self, sizes):
-        modules = [
-            PNNLinear(lid, len(self.columns), sizes[lid], sizes[lid + 1])
-            for lid in range(self.nlayers)
-        ]
-        # adding critic layer
-        modules.append(
-            PNNLinear(self.nlayers - 1, len(self.columns),
-                      sizes[self.nlayers - 1], 1))
-        self.columns.append(nn.ModuleList(modules))
+        if self.type == 'linear':
+            modules = [
+                PNNLinear(lid, len(self.columns), sizes[lid], sizes[lid + 1])
+                for lid in range(self.nlayers)
+            ]
+            # adding critic layer
+            modules.append(
+                PNNLinear(self.nlayers - 1, len(self.columns),
+                          sizes[self.nlayers - 1], 1))
+            self.columns.append(nn.ModuleList(modules))
+        elif self.type == 'conv':
+            pass
 
     # freeze previous columns
     def freeze(self):

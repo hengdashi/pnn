@@ -79,6 +79,8 @@ def ltrain(pid, opt, gmodel, optimizer, save=False):
                     for env, other_action in zip(envs[:-1], other_actions)
                 ]
                 states.append(state)
+
+                # normalize reward
                 reward = max(min(reward, 1), -1)
 
                 done = True if step > opt.ngsteps else done
@@ -192,12 +194,12 @@ def ltest(pid, opt, gmodel):
                 for env, other_action in zip(envs[:-1], other_actions)
             ]
             states.append(torch.Tensor(state))
-            done = done or step >= opt.ngsteps
             reward_sum += reward
             if opt.render:
                 envs[-1].render()
             actions.append(action)
-            if actions.count(actions[0]) == actions.maxlen:
+            if step > opt.ngsteps or actions.count(
+                    actions[0]) == actions.maxlen:
                 done = True
             if done:
                 print(
