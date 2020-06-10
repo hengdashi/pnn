@@ -205,7 +205,7 @@ def ltest(pid, opt, gmodel):
             if done:
                 print(
                     f"Time {time.strftime('%Hh %Mm %Ss', time.gmtime(time.time()-start_time))}, "
-                    + "reward {reward_sum}, episode {step}")
+                    + f"reward {reward_sum}, episode {step}")
                 step = 0
                 reward_sum = 0
                 actions.clear()
