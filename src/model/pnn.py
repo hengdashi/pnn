@@ -55,10 +55,10 @@ class PNNLinear(nn.Module):
         # lateral connections
         # use old inputs from previous columns
         prev_out = sum([
-            u(F.relu(v(alpha * x)))
+            u(F.elu(v(alpha * x)))
             for u, v, alpha, x in zip(self.u, self.v, self.alpha, X)
         ])
-        return F.relu(cur_out + prev_out)
+        return F.elu(cur_out + prev_out)
 
 
 class PNNConv(nn.Module):
@@ -126,7 +126,7 @@ class PNN(nn.Module):
             # rest layers pass till last layer
             for k in range(1, self.nlayers - 1):
                 h = [
-                    F.relu(column[k](h[:i + 1]))
+                    column[k](h[:i + 1])
                     for i, column in enumerate(self.columns)
                 ]
             # last layer
