@@ -89,15 +89,9 @@ class PNNConv(nn.Module):
 
             # alpha
             self.alpha.append(None)
-            self.alpha.append(
-                nn.Parameter(torch.Tensor(np.random.choice([1e0, 1e-1,
-                                                            1e-2]))))
-            self.alpha.append(
-                nn.Parameter(torch.Tensor(np.random.choice([1e0, 1e-1,
-                                                            1e-2]))))
-            self.alpha.append(
-                nn.Parameter(torch.Tensor(np.random.choice([1e0, 1e-1,
-                                                            1e-2]))))
+            self.alpha.extend([
+                nn.Parameter(torch.Tensor(np.random.choice([1e0, 1e-1, 1e-2])))
+            ])
 
             # lateral connection
             self.u.append(None)
@@ -132,9 +126,10 @@ class PNN(nn.Module):
             # rest layers pass till last layer
             for k in range(1, self.nlayers - 1):
                 h = [
-                    column[k](h[:i + 1])
+                    F.relu(column[k](h[:i + 1]))
                     for i, column in enumerate(self.columns)
                 ]
+            # last layer
             h_list = [column[self.nlayers - 1](h) for column in self.columns]
 
             h_actor = h_list[-1]
