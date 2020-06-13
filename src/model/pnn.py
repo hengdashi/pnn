@@ -54,11 +54,11 @@ class PNNLinear(nn.Module):
         # second part of the equation
         # lateral connections
         # use old inputs from previous columns
-        prev_out = sum([
+        prev_out = [
             u(F.elu(v(alpha * x)))
             for u, v, alpha, x in zip(self.u, self.v, self.alpha, X)
-        ])
-        return F.elu(cur_out + prev_out)
+        ]
+        return F.elu(cur_out + sum(prev_out))
 
 
 class PNNConv(nn.Module):
@@ -118,7 +118,11 @@ class PNN(nn.Module):
         self.columns = nn.ModuleList()
 
     def forward(self, X):
-        h_actor, h_critic, h_list = None, None, None
+        """
+        PNN forwarding method
+        X is the state of the current environment being trained
+        """
+        h_actor, h_critic = None, None
 
         if self.type == 'linear':
             # first layer pass
@@ -130,13 +134,11 @@ class PNN(nn.Module):
                     for i, column in enumerate(self.columns)
                 ]
             # last layer
-            h_list = [column[self.nlayers - 1](h) for column in self.columns]
-
-            h_actor = h_list[-1]
+            h_actor = self.columns[len(self.columns) - 1][self.nlayers - 1](h)
             h_critic = self.columns[len(self.columns) - 1][self.nlayers](h)
 
         # return latest output unless specified
-        return h_actor, h_critic, h_list[:-1]
+        return h_actor, h_critic
 
     # sizes contains a list of layers' output size
     # add a column to the neural net
