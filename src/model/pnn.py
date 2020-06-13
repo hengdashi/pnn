@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -46,6 +47,7 @@ class PNNLinear(nn.Module):
             ])
 
     def forward(self, X):
+        """feed forward for linear pnn"""
         X = [X] if not isinstance(X, list) else X
         # first part of the equation
         # current column output
@@ -62,59 +64,150 @@ class PNNLinear(nn.Module):
 
 
 class PNNConv(nn.Module):
-    def __init__(self, cid, input_channel, output_dim):
+    def __init__(self, cid, nchannels, nactions):
         super(PNNConv, self).__init__()
 
         self.cid = cid
+        self.nchannels = nchannels
+        self.nactions = nactions
+        # 5 layers neural network
+        self.nlayers = 5
+
+        # init normal nn, lateral connection, adapter layer and alpha
         self.w = nn.ModuleList()
         self.u = nn.ModuleList()
         self.v = nn.ModuleList()
-        self.alpha = []
+        self.alpha = nn.ModuleList()
+        self.u_actor = nn.ModuleList()
+        self.u_critic = nn.ModuleList()
 
-        self.w.append(
-            nn.Conv2d(input_channel, 12, kernel_size=(8, 8), stride=(4, 4)))
+        # normal neural network
+        self.w.append(nn.Conv2d(nchannels, 12, kernel_size=8, stride=4))
         self.w.append(nn.Conv2d(12, 12, kernel_size=4, stride=2))
         self.w.append(nn.Conv2d(12, 12, kernel_size=(3, 4)))
-        conv_out_size = int(
-            np.prod(self._get_conv_out((input_channel, 210, 160))))
-        self.w.append(nn.Linear(conv_out_size, output_dim))
-        self.w.append(nn.Linear(conv_out_size, 1))
+        conv_out_size = self._get_conv_out((nchannels, 210, 160))
+        self.w.append(nn.Linear(conv_out_size, 256))
+        self.actor = nn.Linear(256, nactions)
+        self.critic = nn.Linear(256, 1)
 
-        if self.cid:
+        # only add lateral connections and adapter layers if not first column
+        # for each columns
+        for i in range(self.cid):
+            self.v.append(nn.ModuleList())
             # adapter layer
-            self.v.append(None)
-            self.v.append(nn.Conv2d(12, 1, kernel_size=1))
-            self.v.append(nn.Conv2d(12, 1, kernel_size=1))
-            self.v.append(nn.Conv2d(12, 1, kernel_size=1))
+            self.v[i].append(nn.Identity())
+            self.v[i].append(nn.Conv2d(12, 1, kernel_size=1))
+            self.v[i].append(nn.Conv2d(12, 1, kernel_size=1))
+            self.v[i].append(nn.Identity())
+            self.v[i].append(nn.Identity())
 
             # alpha
-            self.alpha.append(None)
-            self.alpha.extend([
-                nn.Parameter(torch.Tensor(np.random.choice([1e0, 1e-1, 1e-2])))
+            self.alpha.append(nn.ParameterList())
+            self.alpha[i].append(
+                nn.Parameter(torch.Tensor(1), requires_grad=False))
+            self.alpha[i].extend([
+                nn.Parameter(
+                    torch.Tensor(np.array(np.random.choice([1e0, 1e-1,
+                                                            1e-2]))))
+                for _ in range(2)
             ])
+            self.alpha[i].append(
+                nn.Parameter(torch.Tensor(1), requires_grad=False))
+            self.alpha[i].append(
+                nn.Parameter(torch.Tensor(1), requires_grad=False))
 
             # lateral connection
-            self.u.append(None)
-            self.u.append(nn.Conv2d(1, 12, kernel_size=4, stride=2))
-            self.u.append(nn.Conv2d(1, 12, kernel_size=(3, 4)))
-            self.u.append(nn.Linear(conv_out_size, output_dim))
-            self.u.append(nn.Linear(conv_out_size, 1))
+            self.u.append(nn.ModuleList())
+            self.u[i].append(nn.Identity())
+            self.u[i].append(nn.Conv2d(1, 12, kernel_size=4, stride=2))
+            self.u[i].append(nn.Conv2d(1, 12, kernel_size=(3, 4)))
+            self.u[i].append(nn.Linear(conv_out_size, 256))
+            self.u_actor.append(nn.Linear(256, self.nactions))
+            self.u_critic.append(nn.Linear(256, 1))
 
-    def _get_conv_out(self, shape, cid=3):
-        o = self.w[0](torch.zeros(1, *shape))
-        if cid == 2 or cid == 3:
-            o = self.w[1](o)
-        if cid == 3:
-            o = self.w[2](o)
-        return o.size()
+        # init weights
+        self._reset_parameters()
+
+        gain = nn.init.calculate_gain('relu')
+        for nnlayer in self.w:
+            nnlayer.weight.data.mul_(gain)
+        for i in range(self.cid):
+            for ulayer in self.u[i]:
+                if not isinstance(ulayer, nn.Identity):
+                    ulayer.weight.data.mul_(gain)
+            for vlayer in self.v[i]:
+                if not isinstance(vlayer, nn.Identity):
+                    vlayer.weight.data.mul_(gain)
+
+    def forward(self, x, pre_out):
+        """feed forward process for a single column"""
+        # put a placeholder to occupy the first layer spot
+        next_out, w_out = [torch.zeros(x.shape)], x
+
+        # pass input layer by layer
+        for i in range(self.nlayers - 1):
+            if i == 3:
+                w_out = w_out.view(w_out.size(0), -1)
+                for k in range(self.cid):
+                    pre_out[k][i] = pre_out[k][i].view(pre_out[k][i].size(0),
+                                                       -1)
+            # pass into normal network
+            w_out = self.w[i](w_out)
+            # u, alpha, v are only valid if cid is not zero
+            # summing over for all networks from previous cols
+            # u[k][i]: u network for ith layer kth column
+            u_out = [
+                self.u[k][i](F.relu(self.v[k][i](self.alpha[k][i] *
+                                                 (pre_out[k][i]))))
+                if self.cid and i else torch.zeros(w_out.shape)
+                for k in range(self.cid)
+            ]
+            w_out = F.relu(w_out + sum(u_out))
+            next_out.append(w_out)
+
+        # last layer
+        critic_out = self.critic(w_out)
+        pre_critic_out = [
+            self.u_critic[k](pre_out[k][self.nlayers - 1])
+            if self.cid else torch.zeros(critic_out.shape)
+            for k in range(self.cid)
+        ]
+        actor_out = self.actor(w_out)
+        pre_actor_out = [
+            self.u_actor[k](pre_out[k][self.nlayers - 1])
+            if self.cid else torch.zeros(actor_out.shape)
+            for k in range(self.cid)
+        ]
+
+        # TODO: do we need information from previous columns or not?
+        return critic_out + F.relu(torch.tensor(sum(pre_critic_out)).clone().detach()), \
+               actor_out + F.relu(torch.tensor(sum(pre_actor_out)).clone().detach()),\
+               next_out
+        #  return critic_out, actor_out, next_out
+
+    def _get_conv_out(self, shape):
+        output = self.w[0](torch.zeros(1, *shape))
+        output = self.w[1](output)
+        output = self.w[2](output)
+        return int(np.prod(output.size()))
+
+    def _reset_parameters(self):
+        for model in self.modules():
+            if isinstance(model, (nn.Conv2d, nn.Linear)):
+                nn.init.kaiming_normal_(model.weight,
+                                        mode='fan_in',
+                                        nonlinearity='relu')
+                if model.bias is not None:
+                    nn.init.zeros_(model.bias)
 
 
 class PNN(nn.Module):
-    # nlayers is the number of layers in one column
-    def __init__(self, nlayers, type='linear'):
+    """Progressive Neural Network"""
+    def __init__(self, model_type='linear'):
         super(PNN, self).__init__()
-        self.nlayers = nlayers
-        self.type = type
+        self.model_type = model_type
+        self.cid = 0
+        # complete network
         self.columns = nn.ModuleList()
 
     def forward(self, X):
@@ -122,28 +215,32 @@ class PNN(nn.Module):
         PNN forwarding method
         X is the state of the current environment being trained
         """
-        h_actor, h_critic = None, None
+        h_actor, h_critic, next_out = None, None, []
 
-        if self.type == 'linear':
+        if self.model_type == 'linear':
             # first layer pass
-            h = [column[0](X) for column in self.columns]
+            h = [self.columns[i][0](X) for i in range(self.cid)]
             # rest layers pass till last layer
             for k in range(1, self.nlayers - 1):
-                h = [
-                    column[k](h[:i + 1])
-                    for i, column in enumerate(self.columns)
-                ]
+                h = [self.columns[i][k](h[:i + 1]) for i in range(self.cid)]
             # last layer
-            h_actor = self.columns[len(self.columns) - 1][self.nlayers - 1](h)
-            h_critic = self.columns[len(self.columns) - 1][self.nlayers](h)
+            h_actor = self.columns[self.cid - 1][-2](h)
+            h_critic = self.columns[self.cid - 1][-1](h)
+        elif self.model_type == 'conv':
+            for i in range(self.cid):
+                h_critic, h_actor, out = self.columns[i](X, next_out)
+                next_out.append(out)
 
-        # return latest output unless specified
-        return h_actor, h_critic
+        return h_critic, h_actor
 
-    # sizes contains a list of layers' output size
-    # add a column to the neural net
-    def add(self, sizes):
-        if self.type == 'linear':
+    def add(self, nchannels=None, nactions=None, sizes=None):
+        """
+        add a column to pnn
+        sizes contains a list of layers' output size
+        """
+        self.cid += 1 if not self.columns else 0
+
+        if self.model_type == 'linear':
             modules = [
                 PNNLinear(lid, len(self.columns), sizes[lid], sizes[lid + 1])
                 for lid in range(self.nlayers)
@@ -153,16 +250,21 @@ class PNN(nn.Module):
                 PNNLinear(self.nlayers - 1, len(self.columns),
                           sizes[self.nlayers - 1], 1))
             self.columns.append(nn.ModuleList(modules))
-        elif self.type == 'conv':
-            pass
+        elif self.model_type == 'conv':
+            self.columns.append(PNNConv(len(self.columns), nchannels,
+                                        nactions))
 
-    # freeze previous columns
     def freeze(self):
+        """freeze previous columns"""
         for column in self.columns:
             for params in column.parameters():
                 params.requires_grad = False
 
-    # return parameters of the current column
-    def parameters(self, cid=None):
-        return super(PNN, self).parameters(
-        ) if cid is None else self.columns[cid].parameters()
+        self.cid += 1
+
+    def parameters(self):
+        """return parameters of the current column"""
+        if not self.cid:
+            return super(PNN, self).parameters()
+        else:
+            return self.columns[self.cid - 1].parameters()

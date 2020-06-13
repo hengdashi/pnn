@@ -1,17 +1,63 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import cv2
+import numpy as np
 
 import gym
+from gym.spaces.box import Box
+
 from skimage import util
+
 from common.utils import cv2_clipped_zoom
 
 
-def create_env():
+def create_env(opt):
     # TODO: try only one environment, latter can be changed to more
-    envs = [
-        NormalizedEnv(gym.make('Pong-ramDeterministic-v4')) for _ in range(1)
-    ]
+    envs = []
+    if opt.model_type == 'linear':
+        if opt.ncolumns == 1:
+            envs = [NormalizedEnv(gym.make('Pong-ramDeterministic-v4'))]
+        elif opt.ncolumns == 2:
+            envs = [
+                NormalizedEnv(gym.make('Pong-ramDeterministic-v4')),
+                NormalizedEnv(gym.make('Boxing-ramDeterministic-v4'))
+            ]
+        elif opt.ncolumns == 3:
+            envs = [
+                NormalizedEnv(gym.make('Pong-ramDeterministic-v4')),
+                NormalizedEnv(gym.make('Boxing-ramDeterministic-v4')),
+                NormalizedEnv(gym.make('Alien-ramDeterministic-v4'))
+            ]
+    elif opt.model_type == 'conv':
+        if opt.ncolumns == 1:
+            envs = [NormalizedEnv(gym.make('PongDeterministic-v4'))]
+        elif opt.ncolumns == 2:
+            envs = [
+                NormalizedEnv(gym.make('PongDeterministic-v4')),
+                NormalizedEnv(PongZoom(gym.make('PongDeterministic-v4')))
+            ]
+        elif opt.ncolumns == 3:
+            envs = [
+                NormalizedEnv(PongNoisy(gym.make('PongDeterministic-v4'))),
+                NormalizedEnv(PongFlip(gym.make('PongDeterministic-v4'))),
+                NormalizedEnv(PongZoom(gym.make('PongDeterministic-v4')))
+            ]
     return envs
+
+
+#  class AtariRescale(gym.ObservationWrapper):
+#  def __init__(self, env=None):
+#  gym.ObservationWrapper.__init__(self, env)
+#  self.observation_space = Box(0.0, 1.0, [1, 84, 84])
+#
+#  def observation(self, frame):
+#  frame = frame[34:34 + 160, :160]
+#  frame = cv2.resize(frame, (84, 84))
+#  frame = frame.mean(2, keepdims=True)
+#  frame = frame.astype(np.float32)
+#  frame *= (1.0 / 255.0)
+#  frame = np.moveaxis(frame, -1, 0)
+#  return frame
 
 
 class NormalizedEnv(gym.ObservationWrapper):
@@ -35,16 +81,12 @@ class NormalizedEnv(gym.ObservationWrapper):
         return (observation - unbiased_mean) / (unbiased_std + 1e-8)
 
 
-class Pong():
-    def __init__(self):
-        self.env = gym.make('Pong-ramDeterministic-v4')
+class PongFlip(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(env)
+        self.env = env
         self.action_space = self.env.action_space
-
-
-class PongFlip():
-    def __init__(self):
-        self.env = gym.make('PongDeterministic-v4')
-        self.action_space = self.env.action_space
+        self.observation_space = self.env.observation_space
 
     def reset(self):
         observation = self.env.reset()
@@ -64,10 +106,12 @@ class PongFlip():
         self.env.render()
 
 
-class PongNoisy():
-    def __init__(self):
-        self.env = gym.make('PongDeterministic-v4')
+class PongNoisy(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(env)
+        self.env = env
         self.action_space = self.env.action_space
+        self.observation_space = self.env.observation_space
 
     def reset(self):
         observation = self.env.reset()
@@ -85,19 +129,21 @@ class PongNoisy():
         self.env.render()
 
 
-class PongZoom():
-    def __init__(self):
-        self.env = gym.make('PongDeterministic-v4')
+class PongZoom(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(env)
+        self.env = env
         self.action_space = self.env.action_space
+        self.observation_space = self.env.observation_space
 
     def reset(self):
         observation = self.env.reset()
-        observation = cv2_clipped_zoom(observation, 0.8)
+        observation = cv2_clipped_zoom(observation, 0.75)
         return observation
 
     def step(self, action):
         observation, reward, done, _ = self.env.step(action)
-        observation = cv2_clipped_zoom(observation, 0.8)
+        observation = cv2_clipped_zoom(observation, 0.75)
         return observation, reward, done, _
 
     def render(self):

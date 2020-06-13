@@ -2,20 +2,20 @@
 # -*- coding: utf-8 -*-
 import shutil
 
+from tqdm import auto
+
 import torch
 import torch.multiprocessing as _mp
 
 from model.pnn import PNN
 from model.optimizer import GlobalAdam
-from model.process import ltrain, ltest
-from common.params import Parameters
+from model.train import train
+from model.test import test
 from model.env import create_env
+from common.params import Parameters
 
 if __name__ == "__main__":
     opt = Parameters()
-    opt.gpu = opt.gpu and torch.cuda.is_available()
-    opt.device = torch.device("cuda" if opt.gpu else "cpu")
-    print("Using GPU" if opt.gpu else "Using CPU")
 
     if opt.log_path.exists() and opt.log_path.is_dir():
         shutil.rmtree(opt.log_path)
@@ -25,13 +25,18 @@ if __name__ == "__main__":
 
     # init multiprocessing module
     mp = _mp.get_context("spawn")
-    allenvs = create_env()
-    gmodel = PNN(nlayers=opt.nlayers)
+    # for evaluation use
+    allenvs = create_env(opt)
+    gmodel = PNN(opt.model_type)
     # TODO: try one environment for now
-    gmodel.add([
-        allenvs[0].observation_space.shape[0], 64, 32, 16,
-        allenvs[0].action_space.n
-    ])
+    for env in allenvs:
+        if opt.model_type == 'linear':
+            gmodel.add(sizes=[
+                env.observation_space.shape[0], 64, 32, 16, env.action_space.n
+            ])
+        elif opt.model_type == 'conv':
+            gmodel.add(nchannels=env.observation_space.shape[-1],
+                       nactions=env.action_space.n)
 
     gmodel.share_memory()
     if opt.load:
@@ -39,18 +44,19 @@ if __name__ == "__main__":
         if file.exists() and file.is_file():
             gmodel.load_state_dict(torch.load(file))
 
+    auto.tqdm.write(f"{vars(opt)}")
+
     optimizer = GlobalAdam(gmodel.parameters(), lr=opt.lr)
+
+    lock = mp.Lock()
     processes = []
     for pid in range(opt.nprocesses):
-        if pid == 0:
-            process = mp.Process(target=ltrain,
-                                 args=(pid, opt, gmodel, optimizer, True))
-        else:
-            process = mp.Process(target=ltrain,
-                                 args=(pid, opt, gmodel, optimizer))
+        process = mp.Process(target=train,
+                             args=(pid, opt, gmodel, optimizer,
+                                   True if not pid else False))
         process.start()
         processes.append(process)
-    process = mp.Process(target=ltest, args=(opt.nprocesses, opt, gmodel))
+    process = mp.Process(target=test, args=(opt.nprocesses, opt, gmodel, lock))
     process.start()
     processes.append(process)
     for process in processes:

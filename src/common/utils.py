@@ -1,7 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+from statistics import mean, median
+
 import numpy as np
 import cv2
+
+
+def gen_stats(data):
+    return min(data), max(data), mean(data), median(data)
+
+
+def get_threshold(env_name):
+    if 'Pong' in env_name:
+        return 18
+    elif 'Riverraid' in env_name:
+        return 14000
+    elif 'Boxing' in env_name:
+        return 90
+    elif 'NameThisGame' in env_name:
+        return 14000
+    elif 'Alien' in env_name:
+        return 2500
 
 
 def cv2_clipped_zoom(ori, factor):
