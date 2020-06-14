@@ -14,7 +14,7 @@ class Parameters:
         # number of columns in PNN (default: 1)
         self.ncolumns = 1
         # learning rate (default: 1e-4)
-        self.lr = 5e-4
+        self.lr = 1e-4
         # discount factor for rewards (default: 0.99)
         self.gamma = 0.99
         # parameter for GAE (default: 1.0)
@@ -23,10 +23,10 @@ class Parameters:
         self.beta = 1e-2
         # critic loss coef (default: 0.5)
         self.critic_loss_coef = 0.5
-        # max grad norm (default: 40)
-        self.clip = 40
+        # max grad norm (default: 50)
+        self.clip = 50
         # number of local steps (default: 4)
-        self.nlsteps = 4
+        self.nlsteps = 20
         # number of global steps (default: 1.6e8)
         self.ngsteps = 1.6e8
         # number of processes (default: 16)
@@ -43,5 +43,5 @@ class Parameters:
         self.load = False
         # whether to render the frames or not (default: False)
         self.render = False
-        # seed (default: 123)
-        self.seed = 123
+        # seed (default: 1)
+        self.seed = 1

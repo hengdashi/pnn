@@ -81,13 +81,13 @@ class PNNConv(nn.Module):
         self.u_critic = nn.ModuleList()
 
         # normal neural network
-        self.w.append(nn.Conv2d(nchannels, 12, kernel_size=8, stride=4))
-        self.w.append(nn.Conv2d(12, 12, kernel_size=4, stride=2))
-        self.w.append(nn.Conv2d(12, 12, kernel_size=(3, 4)))
+        self.w.append(nn.Conv2d(nchannels, 32, kernel_size=8, stride=4))
+        self.w.append(nn.Conv2d(32, 64, kernel_size=4, stride=2))
+        self.w.append(nn.Conv2d(64, 64, kernel_size=3))
         conv_out_size = self._get_conv_out((nchannels, 84, 84))
-        self.w.append(nn.Linear(conv_out_size, 256))
-        self.actor = nn.Linear(256, nactions)
-        self.critic = nn.Linear(256, 1)
+        self.w.append(nn.Linear(conv_out_size, 512))
+        self.actor = nn.Linear(512, nactions)
+        self.critic = nn.Linear(512, 1)
 
         # only add lateral connections and adapter layers if not first column
         # for each columns
@@ -95,8 +95,8 @@ class PNNConv(nn.Module):
             self.v.append(nn.ModuleList())
             # adapter layer
             self.v[i].append(nn.Identity())
-            self.v[i].append(nn.Conv2d(12, 1, kernel_size=1))
-            self.v[i].append(nn.Conv2d(12, 1, kernel_size=1))
+            self.v[i].append(nn.Conv2d(32, 1, kernel_size=1))
+            self.v[i].append(nn.Conv2d(64, 1, kernel_size=1))
             self.v[i].append(nn.Identity())
             self.v[i].append(nn.Identity())
 
@@ -118,11 +118,11 @@ class PNNConv(nn.Module):
             # lateral connection
             self.u.append(nn.ModuleList())
             self.u[i].append(nn.Identity())
-            self.u[i].append(nn.Conv2d(1, 12, kernel_size=4, stride=2))
-            self.u[i].append(nn.Conv2d(1, 12, kernel_size=(3, 4)))
-            self.u[i].append(nn.Linear(conv_out_size, 256))
-            self.u_actor.append(nn.Linear(256, self.nactions))
-            self.u_critic.append(nn.Linear(256, 1))
+            self.u[i].append(nn.Conv2d(1, 32, kernel_size=4, stride=2))
+            self.u[i].append(nn.Conv2d(1, 64, kernel_size=3))
+            self.u[i].append(nn.Linear(conv_out_size, 512))
+            self.u_actor.append(nn.Linear(512, self.nactions))
+            self.u_critic.append(nn.Linear(512, 1))
 
         # init weights
         self._reset_parameters()

@@ -16,20 +16,21 @@ def train(pid, opt, gmodel, optimizer, save=False):
     writer = SummaryWriter(opt.log_path)
     allenvs = create_env(opt)
     lmodel = PNN(opt.model_type)
-    # turn to train mode
-    lmodel.train()
 
     for env in allenvs:
         env.seed(opt.seed + pid)
         # define sizes of each layer and add the columns
-        # TODO: might need to be changed for non ram version
-        # TODO: try only one environment for now
         if opt.model_type == 'linear':
             lmodel.add(sizes=[
                 env.observation_space.shape[0], 64, 32, 16, env.action_space.n
             ])
         elif opt.model_type == 'conv':
             lmodel.add(env.observation_space.shape[0], env.action_space.n)
+
+    # turn to train mode
+    lmodel.train()
+
+    for env in allenvs:
         # get state
         state = torch.Tensor(env.reset())
 
@@ -59,7 +60,7 @@ def train(pid, opt, gmodel, optimizer, save=False):
                 state = torch.Tensor(state)
 
                 # clip reward
-                # reward = max(min(reward, 1), -1)
+                reward = max(min(reward, 1), -1)
 
                 values.append(value)
                 log_probs.append(log_prob)
@@ -93,9 +94,9 @@ def train(pid, opt, gmodel, optimizer, save=False):
                               log_probs[i] * gae.detach()
 
             # 3. worker calculates the value and policy loss
-            loss = actor_loss + opt.critic_loss_coef * critic_loss
             optimizer.zero_grad()
             # 4. worker gets gradients from losses
+            loss = actor_loss + opt.critic_loss_coef * critic_loss
             loss.backward()
             torch.nn.utils.clip_grad_norm_(lmodel.parameters(), opt.clip)
             # 5. worker updates global network with gradients

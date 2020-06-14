@@ -55,7 +55,7 @@ class AtariRescale(gym.ObservationWrapper):
     def __init__(self, env=None):
         gym.ObservationWrapper.__init__(self, env)
         # Box(low, high, shape)
-        self.observation_space = Box(0.0, 1.0, [3, 84, 84])
+        self.observation_space = Box(0.0, 1.0, [1, 84, 84])
 
     def observation(self, frame):
         # rescale to 160 x 160
@@ -63,8 +63,8 @@ class AtariRescale(gym.ObservationWrapper):
         # resize to 84 x 84
         frame = cv2.resize(frame, (84, 84))
         # take mean of three rgb values
-        # frame would be turned to 1d
-        #  frame = frame.mean(2, keepdims=True)
+        # frame would be turned to grayscale
+        frame = frame.mean(2, keepdims=True)
         frame = frame.astype(np.float32)
         # normalize to [0, 1] range
         frame *= (1.0 / 255.0)

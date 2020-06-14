@@ -17,7 +17,6 @@ def test(pid, opt, gmodel, lock):
     torch.manual_seed(opt.seed + pid)
     allenvs = create_env(opt)
     lmodel = PNN(opt.model_type)
-    lmodel.eval()
 
     for env in allenvs:
         auto.tqdm.write(env.unwrapped.spec.id)
@@ -31,6 +30,9 @@ def test(pid, opt, gmodel, lock):
             lmodel.add(nchannels=env.observation_space.shape[0],
                        nactions=env.action_space.n)
 
+    # turn to eval mode
+    lmodel.eval()
+
     for env in allenvs:
         state = torch.Tensor(env.reset())
         done = True
@@ -38,29 +40,29 @@ def test(pid, opt, gmodel, lock):
         actions = deque(maxlen=opt.max_actions)
 
         iterator = tqdm(range(int(opt.ngsteps)))
-        for episode in iterator:
+        for _ in iterator:
             step += 1
             if done:
                 lmodel.load_state_dict(gmodel.state_dict())
 
             with torch.no_grad():
                 _, logits = lmodel(state.unsqueeze(0))
-            prob = F.softmax(logits, dim=1)
-            action = torch.argmax(prob).item()
+            prob = F.softmax(logits, dim=-1)
+            action = prob.max(1, keepdim=True)[1].numpy()
 
-            state, reward, done, _ = env.step(action)
+            state, reward, done, _ = env.step(action[0, 0])
             state = torch.Tensor(state)
             reward_sum += reward
             if opt.render:
                 env.render()
-            actions.append(action)
+            actions.append(action[0, 0])
             if step > opt.ngsteps or \
                actions.count(actions[0]) == actions.maxlen:
                 done = True
 
             if done:
                 # only when this episode is done we can collect rewards
-                progress_data = f"reward: {reward_sum:5.1f}"
+                progress_data = f"step: {step}, reward: {reward_sum:5.1f}"
                 iterator.set_postfix_str(progress_data)
                 threshold = reward_sum
                 step, reward_sum = 0, 0
