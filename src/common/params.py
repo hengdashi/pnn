@@ -14,7 +14,7 @@ class Parameters:
         # number of columns in PNN (default: 1)
         self.ncolumns = 1
         # learning rate (default: 1e-4)
-        self.lr = 1e-3
+        self.lr = 5e-4
         # discount factor for rewards (default: 0.99)
         self.gamma = 0.99
         # parameter for GAE (default: 1.0)
@@ -30,7 +30,7 @@ class Parameters:
         # number of global steps (default: 1.6e8)
         self.ngsteps = 1.6e8
         # number of processes (default: 16)
-        self.nprocesses = 16
+        self.nprocesses = 6
         # number of steps between saving (default: 500)
         self.interval = 500
         # maximum repetition steps in test phase (default: 100)
@@ -42,6 +42,6 @@ class Parameters:
         # load weight from previous trained stage (default: False)
         self.load = False
         # whether to render the frames or not (default: False)
-        self.render = False
+        self.render = True
         # seed (default: 123)
         self.seed = 123

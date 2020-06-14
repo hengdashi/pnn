@@ -66,7 +66,6 @@ class PNNLinear(nn.Module):
 class PNNConv(nn.Module):
     def __init__(self, cid, nchannels, nactions):
         super(PNNConv, self).__init__()
-
         self.cid = cid
         self.nchannels = nchannels
         self.nactions = nactions
@@ -85,7 +84,7 @@ class PNNConv(nn.Module):
         self.w.append(nn.Conv2d(nchannels, 12, kernel_size=8, stride=4))
         self.w.append(nn.Conv2d(12, 12, kernel_size=4, stride=2))
         self.w.append(nn.Conv2d(12, 12, kernel_size=(3, 4)))
-        conv_out_size = self._get_conv_out((nchannels, 210, 160))
+        conv_out_size = self._get_conv_out((nchannels, 84, 84))
         self.w.append(nn.Linear(conv_out_size, 256))
         self.actor = nn.Linear(256, nactions)
         self.critic = nn.Linear(256, 1)
@@ -128,16 +127,16 @@ class PNNConv(nn.Module):
         # init weights
         self._reset_parameters()
 
-        gain = nn.init.calculate_gain('relu')
-        for nnlayer in self.w:
-            nnlayer.weight.data.mul_(gain)
-        for i in range(self.cid):
-            for ulayer in self.u[i]:
-                if not isinstance(ulayer, nn.Identity):
-                    ulayer.weight.data.mul_(gain)
-            for vlayer in self.v[i]:
-                if not isinstance(vlayer, nn.Identity):
-                    vlayer.weight.data.mul_(gain)
+        #  gain = nn.init.calculate_gain('relu')
+        #  for nnlayer in self.w:
+        #  nnlayer.weight.data.mul_(gain)
+        #  for i in range(self.cid):
+        #  for ulayer in self.u[i]:
+        #  if not isinstance(ulayer, nn.Identity):
+        #  ulayer.weight.data.mul_(gain)
+        #  for vlayer in self.v[i]:
+        #  if not isinstance(vlayer, nn.Identity):
+        #  vlayer.weight.data.mul_(gain)
 
     def forward(self, x, pre_out):
         """feed forward process for a single column"""
@@ -192,21 +191,18 @@ class PNNConv(nn.Module):
         return int(np.prod(output.size()))
 
     def _reset_parameters(self):
-        for model in self.modules():
-            if isinstance(model, (nn.Conv2d, nn.Linear)):
-                nn.init.kaiming_normal_(model.weight,
-                                        mode='fan_in',
-                                        nonlinearity='relu')
-                if model.bias is not None:
-                    nn.init.zeros_(model.bias)
+        for module in self.modules():
+            if isinstance(module, (nn.Conv2d, nn.Linear)):
+                nn.init.xavier_uniform_(module.weight)
+                nn.init.constant_(module.bias, 0)
 
 
 class PNN(nn.Module):
     """Progressive Neural Network"""
     def __init__(self, model_type='linear'):
         super(PNN, self).__init__()
-        self.model_type = model_type
         self.cid = 0
+        self.model_type = model_type
         # complete network
         self.columns = nn.ModuleList()
 

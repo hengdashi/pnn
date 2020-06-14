@@ -30,34 +30,44 @@ def create_env(opt):
             ]
     elif opt.model_type == 'conv':
         if opt.ncolumns == 1:
-            envs = [NormalizedEnv(gym.make('PongDeterministic-v4'))]
+            envs = [
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4')))
+            ]
         elif opt.ncolumns == 2:
             envs = [
-                NormalizedEnv(gym.make('PongDeterministic-v4')),
-                NormalizedEnv(PongZoom(gym.make('PongDeterministic-v4')))
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4'))),
+                NormalizedEnv(
+                    AtariRescale(PongZoom(gym.make('PongDeterministic-v4'))))
             ]
         elif opt.ncolumns == 3:
             envs = [
-                NormalizedEnv(PongNoisy(gym.make('PongDeterministic-v4'))),
-                NormalizedEnv(PongFlip(gym.make('PongDeterministic-v4'))),
-                NormalizedEnv(PongZoom(gym.make('PongDeterministic-v4')))
+                NormalizedEnv(
+                    AtariRescale(PongNoisy(gym.make('PongDeterministic-v4')))),
+                NormalizedEnv(
+                    AtariRescale(PongFlip(gym.make('PongDeterministic-v4')))),
+                NormalizedEnv(
+                    AtariRescale(PongZoom(gym.make('PongDeterministic-v4'))))
             ]
     return envs
 
 
-#  class AtariRescale(gym.ObservationWrapper):
-#  def __init__(self, env=None):
-#  gym.ObservationWrapper.__init__(self, env)
-#  self.observation_space = Box(0.0, 1.0, [1, 84, 84])
-#
-#  def observation(self, frame):
-#  frame = frame[34:34 + 160, :160]
-#  frame = cv2.resize(frame, (84, 84))
-#  frame = frame.mean(2, keepdims=True)
-#  frame = frame.astype(np.float32)
-#  frame *= (1.0 / 255.0)
-#  frame = np.moveaxis(frame, -1, 0)
-#  return frame
+class AtariRescale(gym.ObservationWrapper):
+    def __init__(self, env=None):
+        gym.ObservationWrapper.__init__(self, env)
+        self.observation_space = Box(0.0, 1.0, [1, 84, 84])
+
+    def observation(self, frame):
+        # rescale to 160 x 160
+        frame = frame[34:34 + 160, :160]
+        # resize to 84 x 84
+        frame = cv2.resize(frame, (84, 84))
+        # take mean of three rgb values
+        frame = frame.mean(2, keepdims=True)
+        frame = frame.astype(np.float32)
+        frame *= (1.0 / 255.0)
+        # switch to pytorch format
+        frame = np.moveaxis(frame, -1, 0)
+        return frame
 
 
 class NormalizedEnv(gym.ObservationWrapper):

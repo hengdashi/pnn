@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from model.pnn import PNN
 from model.env import create_env
 
-from common.utils import gen_stats, get_threshold
+from common.utils import get_threshold
 
 
 def test(pid, opt, gmodel, lock):
@@ -28,13 +28,13 @@ def test(pid, opt, gmodel, lock):
                 env.observation_space.shape[0], 64, 32, 16, env.action_space.n
             ])
         elif opt.model_type == 'conv':
-            lmodel.add(nchannels=env.observation_space.shape[-1],
+            lmodel.add(nchannels=env.observation_space.shape[0],
                        nactions=env.action_space.n)
 
     for env in allenvs:
         state = torch.Tensor(env.reset())
         done = True
-        step, rewards = 0, []
+        step, reward_sum = 0, 0
         actions = deque(maxlen=opt.max_actions)
 
         iterator = tqdm(range(int(opt.ngsteps)))
@@ -44,13 +44,13 @@ def test(pid, opt, gmodel, lock):
                 lmodel.load_state_dict(gmodel.state_dict())
 
             with torch.no_grad():
-                _, logits = lmodel(state.permute(2, 0, 1).unsqueeze(0))
+                _, logits = lmodel(state.unsqueeze(0))
             prob = F.softmax(logits, dim=1)
             action = torch.argmax(prob).item()
 
             state, reward, done, _ = env.step(action)
             state = torch.Tensor(state)
-            rewards.append(reward)
+            reward_sum += reward
             if opt.render:
                 env.render()
             actions.append(action)
@@ -58,18 +58,16 @@ def test(pid, opt, gmodel, lock):
                actions.count(actions[0]) == actions.maxlen:
                 done = True
 
-            rmin, rmax, rmean, rmedian = gen_stats(rewards)
-            progress_data = f"min/max/mean/median reward: {rmin:5.1f}/{rmax:5.1f}/{rmean:5.1f}/{rmedian:5.1f}"
-            iterator.set_postfix_str(progress_data)
-
             if done:
-                step = 0
-                rewards = []
+                progress_data = f"reward: {reward_sum:5.1f}"
+                iterator.set_postfix_str(progress_data)
+                threshold = reward_sum
+                step, reward_sum = 0, 0
                 actions.clear()
                 state = torch.Tensor(env.reset())
 
                 # time to move on
-                if rmean > get_threshold(env.unwrapped.spec.id):
+                if threshold > get_threshold(env.unwrapped.spec.id):
                     with lock:
                         gmodel.freeze()
                     break

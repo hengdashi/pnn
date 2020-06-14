@@ -29,7 +29,7 @@ def train(pid, opt, gmodel, optimizer, save=False):
                 env.observation_space.shape[0], 64, 32, 16, env.action_space.n
             ])
         elif opt.model_type == 'conv':
-            lmodel.add(env.observation_space.shape[-1], env.action_space.n)
+            lmodel.add(env.observation_space.shape[0], env.action_space.n)
         # get state
         state = torch.Tensor(env.reset())
 
@@ -47,7 +47,7 @@ def train(pid, opt, gmodel, optimizer, save=False):
             # interacting for n local steps
             for _ in range(opt.nlsteps):
                 step += 1
-                value, logits = lmodel(state.permute(2, 0, 1).unsqueeze(0))
+                value, logits = lmodel(state.unsqueeze(0))
                 prob = F.softmax(logits, dim=-1)
                 log_prob = F.log_softmax(logits, dim=-1)
                 entropy = -(prob * log_prob).sum(1, keepdim=True)
@@ -74,7 +74,7 @@ def train(pid, opt, gmodel, optimizer, save=False):
 
             R = torch.zeros((1, 1), dtype=torch.float)
             if not done:
-                value, _ = lmodel(state.permute(2, 0, 1).unsqueeze(0))
+                value, _ = lmodel(state.unsqueeze(0))
                 R = value.detach()
             values.append(R)
 
@@ -111,10 +111,8 @@ def train(pid, opt, gmodel, optimizer, save=False):
             optimizer.step()
 
             # TIME TO LOG DATA
-            rmin, rmax, rmean, rmedian = gen_stats(rewards)
-
             writer.add_scalar(f"Train_{pid}/Loss", loss, episode)
-            writer.add_scalar(f"Train_{pid}/Reward", rmedian, episode)
+            writer.add_scalar(f"Train_{pid}/Reward", sum(rewards), episode)
 
         # FREEZE PREVIOUS COLUMNS
         lmodel.freeze()
