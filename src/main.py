@@ -29,7 +29,6 @@ if __name__ == "__main__":
     # for evaluation use
     allenvs = create_env(opt)
     gmodel = PNN(opt.model_type)
-    # TODO: try one environment for now
     for env in allenvs:
         #  print(env.observation_space)
         if opt.model_type == 'linear':
@@ -58,7 +57,7 @@ if __name__ == "__main__":
                                    True if not pid else False))
         process.start()
         processes.append(process)
-        time.sleep(5)
+        time.sleep(1)
     process = mp.Process(target=test, args=(opt.nprocesses, opt, gmodel, lock))
     process.start()
     processes.append(process)

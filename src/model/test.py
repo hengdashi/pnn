@@ -37,7 +37,7 @@ def test(pid, opt, gmodel, lock):
     for env in allenvs:
         state = torch.Tensor(env.reset())
         done = True
-        step, reward_sum = 0, 0
+        step, reward_sum, weighted = 0, 0, 0
         actions = deque(maxlen=opt.max_actions)
 
         iterator = tqdm(range(int(opt.ngsteps)))
@@ -62,18 +62,16 @@ def test(pid, opt, gmodel, lock):
                 done = True
 
             if done:
+                weighted = 0.9 * weighted + 0.1 * reward_sum
                 # only when this episode is done we can collect rewards
-                progress_data = f"step: {step}, reward: {reward_sum:5.1f}"
+                progress_data = f"step: {step}, reward: {reward_sum:5.1f}, weighted: {weighted:5.1f}"
                 iterator.set_postfix_str(progress_data)
-                threshold = reward_sum
                 step, reward_sum = 0, 0
                 actions.clear()
                 state = torch.Tensor(env.reset())
 
                 # time to move on
-                if threshold > get_threshold(env.unwrapped.spec.id):
+                if weighted > get_threshold(env.unwrapped.spec.id):
                     with lock:
                         gmodel.freeze()
                     break
-
-                time.sleep(60)

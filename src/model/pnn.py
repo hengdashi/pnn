@@ -81,13 +81,16 @@ class PNNConv(nn.Module):
         self.u_critic = nn.ModuleList()
 
         # normal neural network
-        self.w.append(nn.Conv2d(nchannels, 32, kernel_size=8, stride=4))
-        self.w.append(nn.Conv2d(32, 64, kernel_size=4, stride=2))
-        self.w.append(nn.Conv2d(64, 64, kernel_size=3))
+        self.w.append(
+            nn.Conv2d(nchannels, 32, kernel_size=3, stride=2, padding=1))
+        self.w.extend([
+            nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1)
+            for _ in range(3)
+        ])
         conv_out_size = self._get_conv_out((nchannels, 84, 84))
-        self.w.append(nn.Linear(conv_out_size, 512))
-        self.actor = nn.Linear(512, nactions)
-        self.critic = nn.Linear(512, 1)
+        self.w.append(nn.Linear(conv_out_size, 256))
+        self.actor = nn.Linear(256, nactions)
+        self.critic = nn.Linear(256, 1)
 
         # only add lateral connections and adapter layers if not first column
         # for each columns
@@ -95,8 +98,8 @@ class PNNConv(nn.Module):
             self.v.append(nn.ModuleList())
             # adapter layer
             self.v[i].append(nn.Identity())
-            self.v[i].append(nn.Conv2d(32, 1, kernel_size=1))
-            self.v[i].append(nn.Conv2d(64, 1, kernel_size=1))
+            self.v[i].extend(
+                [nn.Conv2d(32, 1, kernel_size=1) for _ in range(3)])
             self.v[i].append(nn.Identity())
             self.v[i].append(nn.Identity())
 
@@ -108,7 +111,7 @@ class PNNConv(nn.Module):
                 nn.Parameter(
                     torch.Tensor(np.array(np.random.choice([1e0, 1e-1,
                                                             1e-2]))))
-                for _ in range(2)
+                for _ in range(3)
             ])
             self.alpha[i].append(
                 nn.Parameter(torch.Tensor(1), requires_grad=False))
@@ -118,25 +121,23 @@ class PNNConv(nn.Module):
             # lateral connection
             self.u.append(nn.ModuleList())
             self.u[i].append(nn.Identity())
-            self.u[i].append(nn.Conv2d(1, 32, kernel_size=4, stride=2))
-            self.u[i].append(nn.Conv2d(1, 64, kernel_size=3))
-            self.u[i].append(nn.Linear(conv_out_size, 512))
-            self.u_actor.append(nn.Linear(512, self.nactions))
-            self.u_critic.append(nn.Linear(512, 1))
+            self.u[i].extend([
+                nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1)
+                for _ in range(3)
+            ])
+            self.u[i].append(nn.Linear(conv_out_size, 256))
+            self.u_actor.append(nn.Linear(256, self.nactions))
+            self.u_critic.append(nn.Linear(256, 1))
 
         # init weights
         self._reset_parameters()
+        self.actor.weight.data = self._normalized(self.actor.weight.data, 1e-2)
+        self.critic.weight.data = self._normalized(self.critic.weight.data)
 
-        #  gain = nn.init.calculate_gain('relu')
-        #  for nnlayer in self.w:
-        #  nnlayer.weight.data.mul_(gain)
-        #  for i in range(self.cid):
-        #  for ulayer in self.u[i]:
-        #  if not isinstance(ulayer, nn.Identity):
-        #  ulayer.weight.data.mul_(gain)
-        #  for vlayer in self.v[i]:
-        #  if not isinstance(vlayer, nn.Identity):
-        #  vlayer.weight.data.mul_(gain)
+    def _normalized(weights, std=1.0):
+        out = torch.randn(weights.size())
+        out *= std / torch.sqrt(out.pow(2).sum(1, keepdim=True))
+        return out
 
     def forward(self, x, pre_out):
         """feed forward process for a single column"""
