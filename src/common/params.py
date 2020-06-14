@@ -24,7 +24,7 @@ class Parameters:
         # critic loss coef (default: 0.5)
         self.critic_loss_coef = 0.5
         # max grad norm (default: 50)
-        self.clip = 50
+        self.clip = 40
         # number of local steps (default: 4)
         self.nlsteps = 20
         # number of global steps (default: 1.6e8)

@@ -12,7 +12,6 @@ from common.utils import cv2_clipped_zoom
 
 
 def create_env(opt):
-    # TODO: try only one environment, latter can be changed to more
     envs = []
     if opt.model_type == 'linear':
         if opt.ncolumns == 1:

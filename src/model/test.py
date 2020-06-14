@@ -78,4 +78,7 @@ def test(pid, opt, gmodel, lock):
                         gmodel.freeze()
                     break
 
+        # freeze local model
+        lmodel.freeze()
+
     auto.tqdm.write("Evaluation Process Terminated")

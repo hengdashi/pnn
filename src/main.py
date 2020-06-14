@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import shutil
+from pprint import pformat
 
 from tqdm import auto
 
@@ -47,7 +48,7 @@ if __name__ == "__main__":
         if file.exists() and file.is_file():
             gmodel.load_state_dict(torch.load(file))
 
-    auto.tqdm.write(f"{vars(opt)}")
+    auto.tqdm.write(f"{pformat(vars(opt), indent=2)}")
 
     optimizer = GlobalAdam(gmodel.parameters(), lr=opt.lr)
 
