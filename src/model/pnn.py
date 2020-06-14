@@ -69,8 +69,8 @@ class PNNConv(nn.Module):
         self.cid = cid
         self.nchannels = nchannels
         self.nactions = nactions
-        # 5 layers neural network
-        self.nlayers = 5
+        # 6 layers neural network
+        self.nlayers = 6
 
         # init normal nn, lateral connection, adapter layer and alpha
         self.w = nn.ModuleList()
@@ -134,11 +134,6 @@ class PNNConv(nn.Module):
         self.actor.weight.data = self._normalized(self.actor.weight.data, 1e-2)
         self.critic.weight.data = self._normalized(self.critic.weight.data)
 
-    def _normalized(weights, std=1.0):
-        out = torch.randn(weights.size())
-        out *= std / torch.sqrt(out.pow(2).sum(1, keepdim=True))
-        return out
-
     def forward(self, x, pre_out):
         """feed forward process for a single column"""
         # put a placeholder to occupy the first layer spot
@@ -146,7 +141,7 @@ class PNNConv(nn.Module):
 
         # pass input layer by layer
         for i in range(self.nlayers - 1):
-            if i == 3:
+            if i == self.nlayers - 2:
                 w_out = w_out.view(w_out.size(0), -1)
                 for k in range(self.cid):
                     pre_out[k][i] = pre_out[k][i].view(pre_out[k][i].size(0),
@@ -162,33 +157,38 @@ class PNNConv(nn.Module):
                 if self.cid and i else torch.zeros(w_out.shape)
                 for k in range(self.cid)
             ]
-            w_out = F.relu_(w_out + sum(u_out))
+            w_out = F.relu(w_out + sum(u_out))
             next_out.append(w_out)
 
         # last layer
         critic_out = self.critic(w_out)
-        pre_critic_out = [
-            self.u_critic[k](pre_out[k][self.nlayers - 1])
-            if self.cid else torch.zeros(critic_out.shape)
-            for k in range(self.cid)
-        ]
+        #  pre_critic_out = [
+        #  self.u_critic[k](pre_out[k][self.nlayers - 1])
+        #  if self.cid else torch.zeros(critic_out.shape)
+        #  for k in range(self.cid)
+        #  ]
         actor_out = self.actor(w_out)
-        pre_actor_out = [
-            self.u_actor[k](pre_out[k][self.nlayers - 1])
-            if self.cid else torch.zeros(actor_out.shape)
-            for k in range(self.cid)
-        ]
+        #  pre_actor_out = [
+        #  self.u_actor[k](pre_out[k][self.nlayers - 1])
+        #  if self.cid else torch.zeros(actor_out.shape)
+        #  for k in range(self.cid)
+        #  ]
 
         # TODO: do we need information from previous columns or not?
-        return critic_out + F.relu_(torch.tensor(sum(pre_critic_out)).clone().detach()), \
-               actor_out + F.relu_(torch.tensor(sum(pre_actor_out)).clone().detach()),\
-               next_out
-        #  return critic_out, actor_out, next_out
+        #  return critic_out + F.relu(torch.tensor(sum(pre_critic_out)).clone().detach()), \
+        #  actor_out + F.relu(torch.tensor(sum(pre_actor_out)).clone().detach()),\
+        #  next_out
+        return critic_out, actor_out, next_out
+
+    def _normalized(self, weights, std=1.0):
+        output = torch.randn(weights.size())
+        output *= std / torch.sqrt(output.pow(2).sum(1, keepdim=True))
+        return output
 
     def _get_conv_out(self, shape):
-        output = self.w[0](torch.zeros(1, *shape))
-        output = self.w[1](output)
-        output = self.w[2](output)
+        output = torch.zeros(1, *shape)
+        for i in range(self.nlayers - 2):
+            output = self.w[i](output)
         return int(np.prod(output.size()))
 
     def _reset_parameters(self):

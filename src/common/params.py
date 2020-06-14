@@ -12,7 +12,7 @@ class Parameters:
         # model type (default: conv)
         self.model_type = 'conv'
         # number of columns in PNN (default: 1)
-        self.ncolumns = 1
+        self.ncolumns = 2
         # learning rate (default: 1e-4)
         self.lr = 1e-4
         # discount factor for rewards (default: 0.99)

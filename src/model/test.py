@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import time
 from collections import deque
 
 from tqdm import tqdm, auto
@@ -20,9 +19,7 @@ def test(pid, opt, gmodel, lock):
     lmodel = PNN(opt.model_type)
 
     for env in allenvs:
-        auto.tqdm.write(env.unwrapped.spec.id)
         env.seed(opt.seed + pid)
-        # TODO: might need to be changed for non ram version
         if opt.model_type == 'linear':
             lmodel.add(sizes=[
                 env.observation_space.shape[0], 64, 32, 16, env.action_space.n
@@ -35,6 +32,7 @@ def test(pid, opt, gmodel, lock):
     lmodel.eval()
 
     for env in allenvs:
+        auto.tqdm.write(env.unwrapped.spec.id)
         state = torch.Tensor(env.reset())
         done = True
         step, reward_sum, weighted = 0, 0, 0
@@ -54,18 +52,22 @@ def test(pid, opt, gmodel, lock):
             state, reward, done, _ = env.step(action[0, 0])
             state = torch.Tensor(state)
             reward_sum += reward
-            if opt.render:
-                env.render()
+
             actions.append(action[0, 0])
             if step > opt.ngsteps or \
                actions.count(actions[0]) == actions.maxlen:
                 done = True
 
+            if opt.render:
+                env.render()
+
+            #  print(f"step {step}, action {action}, done {done}")
             if done:
-                weighted = 0.9 * weighted + 0.1 * reward_sum
+                weighted = 0.98 * weighted + 0.02 * reward_sum
                 # only when this episode is done we can collect rewards
                 progress_data = f"step: {step}, reward: {reward_sum:5.1f}, weighted: {weighted:5.1f}"
                 iterator.set_postfix_str(progress_data)
+
                 step, reward_sum = 0, 0
                 actions.clear()
                 state = torch.Tensor(env.reset())
@@ -75,3 +77,5 @@ def test(pid, opt, gmodel, lock):
                     with lock:
                         gmodel.freeze()
                     break
+
+    auto.tqdm.write("Evaluation Process Terminated")

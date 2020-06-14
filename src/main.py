@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import time
+import os
 import shutil
 
 from tqdm import auto
 
 import torch
-import torch.multiprocessing as _mp
+import torch.multiprocessing as mp
 
 from model.pnn import PNN
 from model.optimizer import GlobalAdam
@@ -16,6 +16,10 @@ from model.env import create_env
 from common.params import Parameters
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn')
+    os.environ['OMP_NUM_THREADS'] = '1'
+    os.environ['CUDA_VISIBLE_DEVICES'] = ''
+
     opt = Parameters()
 
     if opt.log_path.exists() and opt.log_path.is_dir():
@@ -24,8 +28,6 @@ if __name__ == "__main__":
     if not opt.save_path.is_dir():
         opt.save_path.mkdir(parents=True)
 
-    # init multiprocessing module
-    mp = _mp.get_context("spawn")
     # for evaluation use
     allenvs = create_env(opt)
     gmodel = PNN(opt.model_type)
@@ -51,15 +53,17 @@ if __name__ == "__main__":
 
     lock = mp.Lock()
     processes = []
+
+    process = mp.Process(target=test, args=(opt.nprocesses, opt, gmodel, lock))
+    process.start()
+    processes.append(process)
+
     for pid in range(opt.nprocesses):
         process = mp.Process(target=train,
                              args=(pid, opt, gmodel, optimizer,
                                    True if not pid else False))
         process.start()
         processes.append(process)
-        time.sleep(1)
-    process = mp.Process(target=test, args=(opt.nprocesses, opt, gmodel, lock))
-    process.start()
-    processes.append(process)
+
     for process in processes:
         process.join()

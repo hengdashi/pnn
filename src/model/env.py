@@ -29,25 +29,54 @@ def create_env(opt):
                 NormalizedEnv(gym.make('Alien-ramDeterministic-v4'))
             ]
     elif opt.model_type == 'conv':
-        if opt.ncolumns == 1:
-            envs = [
-                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4')))
-            ]
-        elif opt.ncolumns == 2:
-            envs = [
-                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4'))),
-                NormalizedEnv(
-                    AtariRescale(PongZoom(gym.make('PongDeterministic-v4'))))
-            ]
-        elif opt.ncolumns == 3:
-            envs = [
-                NormalizedEnv(
-                    AtariRescale(PongNoisy(gym.make('PongDeterministic-v4')))),
-                NormalizedEnv(
-                    AtariRescale(PongFlip(gym.make('PongDeterministic-v4')))),
-                NormalizedEnv(
-                    AtariRescale(PongZoom(gym.make('PongDeterministic-v4'))))
-            ]
+        if opt.envs == 'pong':
+            if opt.ncolumns == 1:
+                envs = [
+                    NormalizedEnv(
+                        AtariRescale(gym.make('PongDeterministic-v4')))
+                ]
+            elif opt.ncolumns == 2:
+                envs = [
+                    NormalizedEnv(
+                        AtariRescale(gym.make('PongDeterministic-v4'))),
+                    NormalizedEnv(
+                        AtariRescale(PongZoom(
+                            gym.make('PongDeterministic-v4'))))
+                ]
+            elif opt.ncolumns == 3:
+                envs = [
+                    NormalizedEnv(
+                        AtariRescale(
+                            PongNoisy(gym.make('PongDeterministic-v4')))),
+                    NormalizedEnv(
+                        AtariRescale(PongFlip(
+                            gym.make('PongDeterministic-v4')))),
+                    NormalizedEnv(
+                        AtariRescale(PongZoom(
+                            gym.make('PongDeterministic-v4'))))
+                ]
+        elif opt.envs == 'atari':
+            if opt.ncolumns == 1:
+                envs = [
+                    NormalizedEnv(
+                        AtariRescale(gym.make('AlienDeterministic-v4')))
+                ]
+            elif opt.ncolumns == 2:
+                envs = [
+                    NormalizedEnv(
+                        AtariRescale(gym.make('PongDeterministic-v4'))),
+                    NormalizedEnv(
+                        AtariRescale(gym.make('BoxingDeterministic-v4')))
+                ]
+            elif opt.ncolumns == 3:
+                envs = [
+                    NormalizedEnv(
+                        AtariRescale(gym.make('PongDeterministic-v4'))),
+                    NormalizedEnv(
+                        AtariRescale(gym.make('RiverraidDeterministic-v4'))),
+                    NormalizedEnv(
+                        AtariRescale(gym.make('BoxingDeterministic-v4')))
+                ]
     return envs
 
 
@@ -96,10 +125,11 @@ class NormalizedEnv(gym.ObservationWrapper):
 
 class PongFlip(gym.Wrapper):
     def __init__(self, env):
-        gym.Wrapper.__init__(env)
+        gym.Wrapper.__init__(self, env)
         self.env = env
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
+        self.unwrapped.spec.id = 'PongFlipDeterministic-v4'
 
     def reset(self):
         observation = self.env.reset()
@@ -121,10 +151,11 @@ class PongFlip(gym.Wrapper):
 
 class PongNoisy(gym.Wrapper):
     def __init__(self, env):
-        gym.Wrapper.__init__(env)
+        gym.Wrapper.__init__(self, env)
         self.env = env
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
+        self.unwrapped.spec.id = 'PongNoisyDeterministic-v4'
 
     def reset(self):
         observation = self.env.reset()
@@ -144,10 +175,11 @@ class PongNoisy(gym.Wrapper):
 
 class PongZoom(gym.Wrapper):
     def __init__(self, env):
-        gym.Wrapper.__init__(env)
+        gym.Wrapper.__init__(self, env)
         self.env = env
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
+        self.unwrapped.spec.id = 'PongZoomDeterministic-v4'
 
     def reset(self):
         observation = self.env.reset()
