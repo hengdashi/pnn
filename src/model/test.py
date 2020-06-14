@@ -59,6 +59,7 @@ def test(pid, opt, gmodel, lock):
                 done = True
 
             if done:
+                # only when this episode is done we can collect rewards
                 progress_data = f"reward: {reward_sum:5.1f}"
                 iterator.set_postfix_str(progress_data)
                 threshold = reward_sum

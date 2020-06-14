@@ -26,11 +26,11 @@ class Parameters:
         # max grad norm (default: 40)
         self.clip = 40
         # number of local steps (default: 4)
-        self.nlsteps = 20
+        self.nlsteps = 4
         # number of global steps (default: 1.6e8)
         self.ngsteps = 1.6e8
         # number of processes (default: 16)
-        self.nprocesses = 6
+        self.nprocesses = 16
         # number of steps between saving (default: 500)
         self.interval = 500
         # maximum repetition steps in test phase (default: 100)
@@ -42,6 +42,6 @@ class Parameters:
         # load weight from previous trained stage (default: False)
         self.load = False
         # whether to render the frames or not (default: False)
-        self.render = True
+        self.render = False
         # seed (default: 123)
         self.seed = 123

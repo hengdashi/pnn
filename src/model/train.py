@@ -58,7 +58,7 @@ def train(pid, opt, gmodel, optimizer, save=False):
                 state, reward, done, _ = env.step(action.numpy())
                 state = torch.Tensor(state)
 
-                # normalize reward
+                # clip reward
                 # reward = max(min(reward, 1), -1)
 
                 values.append(value)
@@ -112,7 +112,7 @@ def train(pid, opt, gmodel, optimizer, save=False):
 
             # TIME TO LOG DATA
             writer.add_scalar(f"Train_{pid}/Loss", loss, episode)
-            writer.add_scalar(f"Train_{pid}/Reward", sum(rewards), episode)
+            #  writer.add_scalar(f"Train_{pid}/Reward", sum(rewards), episode)
 
         # FREEZE PREVIOUS COLUMNS
         lmodel.freeze()

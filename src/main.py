@@ -30,7 +30,7 @@ if __name__ == "__main__":
     gmodel = PNN(opt.model_type)
     # TODO: try one environment for now
     for env in allenvs:
-        print(env.observation_space)
+        #  print(env.observation_space)
         if opt.model_type == 'linear':
             gmodel.add(sizes=[
                 env.observation_space.shape[0], 64, 32, 16, env.action_space.n
