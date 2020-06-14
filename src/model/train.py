@@ -112,7 +112,7 @@ def train(pid, opt, gmodel, optimizer, save=False):
             optimizer.step()
 
             # TIME TO LOG DATA
-            writer.add_scalar(f"Train_{pid}/Loss", loss, episode)
+            #  writer.add_scalar(f"Train_{pid}/Loss", loss, episode)
             #  writer.add_scalar(f"Train_{pid}/Reward", sum(rewards), episode)
 
         # FREEZE PREVIOUS COLUMNS

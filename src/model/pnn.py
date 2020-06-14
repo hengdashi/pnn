@@ -161,7 +161,7 @@ class PNNConv(nn.Module):
                 if self.cid and i else torch.zeros(w_out.shape)
                 for k in range(self.cid)
             ]
-            w_out = F.relu(w_out + sum(u_out))
+            w_out = F.relu_(w_out + sum(u_out))
             next_out.append(w_out)
 
         # last layer
@@ -179,8 +179,8 @@ class PNNConv(nn.Module):
         ]
 
         # TODO: do we need information from previous columns or not?
-        return critic_out + F.relu(torch.tensor(sum(pre_critic_out)).clone().detach()), \
-               actor_out + F.relu(torch.tensor(sum(pre_actor_out)).clone().detach()),\
+        return critic_out + F.relu_(torch.tensor(sum(pre_critic_out)).clone().detach()), \
+               actor_out + F.relu_(torch.tensor(sum(pre_actor_out)).clone().detach()),\
                next_out
         #  return critic_out, actor_out, next_out
 

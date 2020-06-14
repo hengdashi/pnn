@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import time
 from collections import deque
 
 from tqdm import tqdm, auto
@@ -74,3 +75,5 @@ def test(pid, opt, gmodel, lock):
                     with lock:
                         gmodel.freeze()
                     break
+
+                time.sleep(60)

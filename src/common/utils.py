@@ -22,6 +22,8 @@ def get_threshold(env_name):
         return 14000
     elif 'Alien' in env_name:
         return 2500
+    else:
+        return 0
 
 
 def cv2_clipped_zoom(ori, factor):
