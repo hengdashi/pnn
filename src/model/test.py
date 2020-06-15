@@ -6,6 +6,7 @@ from tqdm import tqdm, auto
 
 import torch
 import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
 
 from model.pnn import PNN
 
@@ -15,6 +16,7 @@ from common.utils import get_threshold
 
 def test(pid, opt, gmodel, lock):
     torch.manual_seed(opt.seed + pid)
+    writer = SummaryWriter(opt.log_path)
     allenvs = create_env(opt)
     lmodel = PNN(allenvs)
 
@@ -23,14 +25,15 @@ def test(pid, opt, gmodel, lock):
 
     for env in allenvs:
         env.seed(opt.seed + pid)
-        auto.tqdm.write(env.unwrapped.spec.id)
         state = torch.Tensor(env.reset())
         done = True
         step, reward_sum, weighted = 0, 0, 0
         actions = deque(maxlen=opt.max_actions)
 
-        iterator = tqdm(range(int(opt.ngsteps)))
-        for _ in iterator:
+        iterator = tqdm(range(int(opt.ngsteps)),
+                        desc=env.unwrapped.spec.id,
+                        unit='episode')
+        for episode in iterator:
             step += 1
             if done:
                 with lock:
@@ -54,8 +57,10 @@ def test(pid, opt, gmodel, lock):
                 env.render()
 
             if done:
-                weighted = 0.95 * weighted + 0.05 * reward_sum
+                weighted = opt.discount * weighted + \
+                           (1 - opt.discount) * reward_sum
                 # only when this episode is done we can collect rewards
+                writer.add_scalar(f"Eval/Reward", reward_sum, episode)
                 progress_data = f"step: {step}, reward: {reward_sum:5.1f}, weighted: {weighted:5.1f}"
                 iterator.set_postfix_str(progress_data)
 
@@ -72,4 +77,4 @@ def test(pid, opt, gmodel, lock):
         # freeze local model
         lmodel.freeze()
 
-    auto.tqdm.write("Evaluation Process Terminated")
+    auto.tqdm.write("Evaluation process terminated")

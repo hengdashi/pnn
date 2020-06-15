@@ -33,6 +33,8 @@ class Parameters:
         self.interval = 500
         # maximum repetition steps in test phase (default: 100)
         self.max_actions = 100
+        # discount rate for accumulated reward
+        self.discount = 0.95
         # logging path (default: tensorboard/pnn)
         self.log_path = self.cwd / "tensorboard" / "pnn"
         # saving path (default: trained_models)
