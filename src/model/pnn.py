@@ -11,12 +11,10 @@ import torch.nn.functional as F
 class PNNColumn(nn.Module):
     def __init__(self, cid, nchannels, nactions):
         super(PNNColumn, self).__init__()
+        nhidden = 256
         self.cid = cid
-        self.nchannels = nchannels
-        self.nactions = nactions
         # 6 layers neural network
         self.nlayers = 6
-        self.nhidden = 256
 
         # init normal nn, lateral connection, adapter layer and alpha
         self.w = nn.ModuleList()
@@ -29,16 +27,15 @@ class PNNColumn(nn.Module):
             nn.Conv2d(nchannels, 32, kernel_size=3, stride=2, padding=1))
         self.w.extend([
             nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1)
-            for _ in range(3)
+            for _ in range(self.nlayers - 3)
         ])
         conv_out_size = self._get_conv_out((nchannels, 84, 84))
-        self.w.append(nn.Linear(conv_out_size, self.nhidden))
+        self.w.append(nn.Linear(conv_out_size, nhidden))
         # w[-2] is the critic layer and w[-1] is the actor layer
         self.w.append(
-            nn.ModuleList([
-                nn.Linear(self.nhidden, 1),
-                nn.Linear(self.nhidden, nactions)
-            ]))
+            nn.ModuleList(
+                [nn.Linear(nhidden, 1),
+                 nn.Linear(nhidden, nactions)]))
 
         # only add lateral connections and adapter layers if not first column
         # v[col][layer][(nnList on that layer)]
@@ -52,10 +49,9 @@ class PNNColumn(nn.Module):
             ])
             self.v[i].append(nn.Linear(conv_out_size, conv_out_size))
             self.v[i].append(
-                nn.ModuleList([
-                    nn.Linear(self.nhidden, self.nhidden),
-                    nn.Linear(self.nhidden, self.nhidden)
-                ]))
+                nn.ModuleList(
+                    [nn.Linear(nhidden, nhidden),
+                     nn.Linear(nhidden, nhidden)]))
 
             # alpha
             self.alpha.append(nn.ParameterList())
@@ -75,12 +71,11 @@ class PNNColumn(nn.Module):
                 nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1)
                 for _ in range(self.nlayers - 3)
             ])
-            self.u[i].append(nn.Linear(conv_out_size, self.nhidden))
+            self.u[i].append(nn.Linear(conv_out_size, nhidden))
             self.u[i].append(
-                nn.ModuleList([
-                    nn.Linear(self.nhidden, 1),
-                    nn.Linear(self.nhidden, self.nactions)
-                ]))
+                nn.ModuleList(
+                    [nn.Linear(nhidden, 1),
+                     nn.Linear(nhidden, nactions)]))
 
         # init weights
         self._reset_parameters()
@@ -166,7 +161,8 @@ class PNNColumn(nn.Module):
         for module in self.modules():
             if isinstance(module, (nn.Conv2d, nn.Linear)):
                 nn.init.xavier_uniform_(module.weight)
-                nn.init.constant_(module.bias, 0)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0)
 
 
 class PNN(nn.Module):
