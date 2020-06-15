@@ -20,16 +20,16 @@ def create_env(opt):
             ]
         elif opt.ncolumns == 2:
             envs = [
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4'))),
                 NormalizedEnv(
-                    PongNoisy(AtariRescale(gym.make('PongDeterministic-v4')))),
-                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4')))
+                    PongHFlip(AtariRescale(gym.make('PongDeterministic-v4'))))
             ]
         elif opt.ncolumns == 3:
             envs = [
                 NormalizedEnv(
                     PongNoisy(AtariRescale(gym.make('PongDeterministic-v4')))),
                 NormalizedEnv(
-                    PongFlip(AtariRescale(gym.make('PongDeterministic-v4')))),
+                    PongHFlip(AtariRescale(gym.make('PongDeterministic-v4')))),
                 NormalizedEnv(
                     PongZoom(AtariRescale(gym.make('PongDeterministic-v4'))))
             ]
@@ -96,7 +96,7 @@ class NormalizedEnv(gym.ObservationWrapper):
         return (observation - unbiased_mean) / (unbiased_std + 1e-8)
 
 
-class PongFlip(gym.Wrapper):
+class PongHFlip(gym.Wrapper):
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
         self.env = env

@@ -199,7 +199,7 @@ class PNN(nn.Module):
         for params in self.columns[self.current].parameters():
             params.requires_grad = True
         # diable those constant parameters
-        for i in self.current:
+        for i in range(self.current):
             self.columns[self.current].alpha[i][0].requires_grad = False
             self.columns[self.current].alpha[i][-1].requires_grad = False
 
