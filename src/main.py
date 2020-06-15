@@ -13,14 +13,19 @@ from model.pnn import PNN
 from model.optimizer import GlobalAdam
 from model.train import train
 from model.test import test
-from model.env import create_env
+
+from common.env import create_env
 from common.params import Parameters
 
 if __name__ == "__main__":
+    # need to use spawn method
+    # otherwise would be super slow on linux server
+    # since the default method is fork
     mp.set_start_method('spawn')
     os.environ['OMP_NUM_THREADS'] = '1'
     os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
+    # load parameters
     opt = Parameters()
 
     if opt.log_path.exists() and opt.log_path.is_dir():
@@ -31,16 +36,7 @@ if __name__ == "__main__":
 
     # for evaluation use
     allenvs = create_env(opt)
-    gmodel = PNN(opt.model_type)
-    for env in allenvs:
-        #  print(env.observation_space)
-        if opt.model_type == 'linear':
-            gmodel.add(sizes=[
-                env.observation_space.shape[0], 64, 32, 16, env.action_space.n
-            ])
-        elif opt.model_type == 'conv':
-            gmodel.add(nchannels=env.observation_space.shape[0],
-                       nactions=env.action_space.n)
+    gmodel = PNN(allenvs)
 
     gmodel.share_memory()
     if opt.load:
@@ -61,7 +57,7 @@ if __name__ == "__main__":
 
     for pid in range(opt.nprocesses):
         process = mp.Process(target=train,
-                             args=(pid, opt, gmodel, optimizer,
+                             args=(pid, opt, gmodel, optimizer, lock,
                                    True if not pid else False))
         process.start()
         processes.append(process)

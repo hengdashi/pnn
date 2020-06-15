@@ -13,69 +13,43 @@ from common.utils import cv2_clipped_zoom
 
 def create_env(opt):
     envs = []
-    if opt.model_type == 'linear':
+    if opt.envs == 'pong':
         if opt.ncolumns == 1:
-            envs = [NormalizedEnv(gym.make('Pong-ramDeterministic-v4'))]
+            envs = [
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4')))
+            ]
         elif opt.ncolumns == 2:
             envs = [
-                NormalizedEnv(gym.make('Pong-ramDeterministic-v4')),
-                NormalizedEnv(gym.make('Boxing-ramDeterministic-v4'))
+                NormalizedEnv(
+                    PongNoisy(AtariRescale(gym.make('PongDeterministic-v4')))),
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4')))
             ]
         elif opt.ncolumns == 3:
             envs = [
-                NormalizedEnv(gym.make('Pong-ramDeterministic-v4')),
-                NormalizedEnv(gym.make('Boxing-ramDeterministic-v4')),
-                NormalizedEnv(gym.make('Alien-ramDeterministic-v4'))
+                NormalizedEnv(
+                    PongNoisy(AtariRescale(gym.make('PongDeterministic-v4')))),
+                NormalizedEnv(
+                    PongFlip(AtariRescale(gym.make('PongDeterministic-v4')))),
+                NormalizedEnv(
+                    PongZoom(AtariRescale(gym.make('PongDeterministic-v4'))))
             ]
-    elif opt.model_type == 'conv':
-        if opt.envs == 'pong':
-            if opt.ncolumns == 1:
-                envs = [
-                    NormalizedEnv(
-                        AtariRescale(gym.make('PongDeterministic-v4')))
-                ]
-            elif opt.ncolumns == 2:
-                envs = [
-                    NormalizedEnv(
-                        AtariRescale(gym.make('PongDeterministic-v4'))),
-                    NormalizedEnv(
-                        AtariRescale(PongZoom(
-                            gym.make('PongDeterministic-v4'))))
-                ]
-            elif opt.ncolumns == 3:
-                envs = [
-                    NormalizedEnv(
-                        AtariRescale(
-                            PongNoisy(gym.make('PongDeterministic-v4')))),
-                    NormalizedEnv(
-                        AtariRescale(PongFlip(
-                            gym.make('PongDeterministic-v4')))),
-                    NormalizedEnv(
-                        AtariRescale(PongZoom(
-                            gym.make('PongDeterministic-v4'))))
-                ]
-        elif opt.envs == 'atari':
-            if opt.ncolumns == 1:
-                envs = [
-                    NormalizedEnv(
-                        AtariRescale(gym.make('AlienDeterministic-v4')))
-                ]
-            elif opt.ncolumns == 2:
-                envs = [
-                    NormalizedEnv(
-                        AtariRescale(gym.make('PongDeterministic-v4'))),
-                    NormalizedEnv(
-                        AtariRescale(gym.make('BoxingDeterministic-v4')))
-                ]
-            elif opt.ncolumns == 3:
-                envs = [
-                    NormalizedEnv(
-                        AtariRescale(gym.make('PongDeterministic-v4'))),
-                    NormalizedEnv(
-                        AtariRescale(gym.make('RiverraidDeterministic-v4'))),
-                    NormalizedEnv(
-                        AtariRescale(gym.make('BoxingDeterministic-v4')))
-                ]
+    elif opt.envs == 'atari':
+        if opt.ncolumns == 1:
+            envs = [
+                NormalizedEnv(AtariRescale(gym.make('AlienDeterministic-v4')))
+            ]
+        elif opt.ncolumns == 2:
+            envs = [
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4'))),
+                NormalizedEnv(AtariRescale(gym.make('BoxingDeterministic-v4')))
+            ]
+        elif opt.ncolumns == 3:
+            envs = [
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4'))),
+                NormalizedEnv(
+                    AtariRescale(gym.make('RiverraidDeterministic-v4'))),
+                NormalizedEnv(AtariRescale(gym.make('BoxingDeterministic-v4')))
+            ]
     return envs
 
 
@@ -159,13 +133,13 @@ class PongNoisy(gym.Wrapper):
     def reset(self):
         observation = self.env.reset()
         observation = util.random_noise(observation, mode='gaussian', seed=1)
-        observation = (observation * 255).astype('int')
+        # observation = (observation * 255).astype('int')
         return observation
 
     def step(self, action):
         observation, reward, done, _ = self.env.step(action)
         observation = util.random_noise(observation, mode='gaussian', seed=1)
-        observation = (observation * 255).astype('int')
+        # observation = (observation * 255).astype('int')
         return observation, reward, done, _
 
     def render(self):

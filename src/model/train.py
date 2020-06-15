@@ -6,31 +6,21 @@ from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
 
 from model.pnn import PNN
-from model.env import create_env
 
-from common.utils import gen_stats
+from common.env import create_env
 
 
-def train(pid, opt, gmodel, optimizer, save=False):
+def train(pid, opt, gmodel, optimizer, lock, save=False):
     torch.manual_seed(opt.seed + pid)
     writer = SummaryWriter(opt.log_path)
     allenvs = create_env(opt)
-    lmodel = PNN(opt.model_type)
-
-    for env in allenvs:
-        env.seed(opt.seed + pid)
-        # define sizes of each layer and add the columns
-        if opt.model_type == 'linear':
-            lmodel.add(sizes=[
-                env.observation_space.shape[0], 64, 32, 16, env.action_space.n
-            ])
-        elif opt.model_type == 'conv':
-            lmodel.add(env.observation_space.shape[0], env.action_space.n)
+    lmodel = PNN(allenvs)
 
     # turn to train mode
     lmodel.train()
 
-    for env in allenvs:
+    for cid, env in enumerate(allenvs):
+        env.seed(opt.seed + pid)
         # get state
         state = torch.Tensor(env.reset())
 
@@ -38,10 +28,12 @@ def train(pid, opt, gmodel, optimizer, save=False):
         # number of total steps locally
         for episode in range(int(opt.ngsteps / opt.nlsteps)):
             if save and not episode % opt.interval and episode:
-                torch.save(gmodel.state_dict(), opt.save_path / "pnn")
+                with lock:
+                    torch.save(gmodel.state_dict(), opt.save_path / "pnn")
 
             # 1. worker reset to global network
-            lmodel.load_state_dict(gmodel.state_dict())
+            with lock:
+                lmodel.load_state_dict(gmodel.state_dict())
 
             log_probs, values, rewards, entropies = [], [], [], []
 
@@ -98,18 +90,21 @@ def train(pid, opt, gmodel, optimizer, save=False):
             # 4. worker gets gradients from losses
             loss = actor_loss + opt.critic_loss_coef * critic_loss
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(lmodel.parameters(), opt.clip)
-            # 5. worker updates global network with gradients
-            # move to next environment if global model is ahea
-            if lmodel.cid < gmodel.cid:
-                break
-            for lparams, gparams in zip(lmodel.parameters(),
-                                        gmodel.parameters()):
-                if gparams.grad is not None:
-                    break
-                gparams._grad = lparams.grad
+            torch.nn.utils.clip_grad_norm_(lmodel.parameters(cid), opt.clip)
 
-            optimizer.step()
+            # move to next environment if global model is ahea
+            if lmodel.current < gmodel.current:
+                break
+
+            # 5. worker updates global network with gradients
+            with lock:
+                for lparams, gparams in zip(lmodel.parameters(cid),
+                                            gmodel.parameters(cid)):
+                    if gparams.grad is not None:
+                        break
+                    gparams._grad = lparams.grad
+
+                optimizer.step()
 
             # TIME TO LOG DATA
             writer.add_scalar(f"Train_{pid}/Loss", loss, episode)

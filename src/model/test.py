@@ -8,30 +8,21 @@ import torch
 import torch.nn.functional as F
 
 from model.pnn import PNN
-from model.env import create_env
 
+from common.env import create_env
 from common.utils import get_threshold
 
 
 def test(pid, opt, gmodel, lock):
     torch.manual_seed(opt.seed + pid)
     allenvs = create_env(opt)
-    lmodel = PNN(opt.model_type)
-
-    for env in allenvs:
-        env.seed(opt.seed + pid)
-        if opt.model_type == 'linear':
-            lmodel.add(sizes=[
-                env.observation_space.shape[0], 64, 32, 16, env.action_space.n
-            ])
-        elif opt.model_type == 'conv':
-            lmodel.add(nchannels=env.observation_space.shape[0],
-                       nactions=env.action_space.n)
+    lmodel = PNN(allenvs)
 
     # turn to eval mode
     lmodel.eval()
 
     for env in allenvs:
+        env.seed(opt.seed + pid)
         auto.tqdm.write(env.unwrapped.spec.id)
         state = torch.Tensor(env.reset())
         done = True
@@ -61,9 +52,8 @@ def test(pid, opt, gmodel, lock):
             if opt.render:
                 env.render()
 
-            #  print(f"step {step}, action {action}, done {done}")
             if done:
-                weighted = 0.98 * weighted + 0.02 * reward_sum
+                weighted = 0.95 * weighted + 0.05 * reward_sum
                 # only when this episode is done we can collect rewards
                 progress_data = f"step: {step}, reward: {reward_sum:5.1f}, weighted: {weighted:5.1f}"
                 iterator.set_postfix_str(progress_data)
