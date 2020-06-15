@@ -70,11 +70,11 @@ class PNNColumn(nn.Module):
                 nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1)
                 for _ in range(3)
             ])
-            self.u[i].append(nn.Linear(conv_out_size, self.hidden))
+            self.u[i].append(nn.Linear(conv_out_size, self.nhidden))
             self.u[i].append(
                 nn.ModuleList([
-                    nn.Linear(self.hidden, 1),
-                    nn.Linear(self.hidden, self.nactions)
+                    nn.Linear(self.nhidden, 1),
+                    nn.Linear(self.nhidden, self.nactions)
                 ]))
 
         # init weights
@@ -87,7 +87,7 @@ class PNNColumn(nn.Module):
             self.u[i][-1][0].weight.data = self._normalized(
                 self.u[i][-1][0].weight.data)
             self.u[i][-1][1].weight.data = self._normalized(
-                self.u[i][-1].weight.data, 1e-2)
+                self.u[i][-1][1].weight.data, 1e-2)
 
     def forward(self, x, pre_out):
         """feed forward process for a single column"""
