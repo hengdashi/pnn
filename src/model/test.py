@@ -33,7 +33,8 @@ def test(pid, opt, gmodel, lock):
         for _ in iterator:
             step += 1
             if done:
-                lmodel.load_state_dict(gmodel.state_dict())
+                with lock:
+                    lmodel.load_state_dict(gmodel.state_dict())
 
             with torch.no_grad():
                 _, logits = lmodel(state.unsqueeze(0))

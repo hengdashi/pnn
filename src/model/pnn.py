@@ -46,9 +46,16 @@ class PNNColumn(nn.Module):
             self.v.append(nn.ModuleList())
             # adapter layer
             self.v[i].append(nn.Identity())
-            self.v[i].extend(
-                [nn.Conv2d(32, 1, kernel_size=1) for _ in range(3)])
-            self.v[i].append(nn.Identity())
+            self.v[i].extend([
+                nn.Conv2d(32, 1, kernel_size=1)
+                for _ in range(self.nlayers - 3)
+            ])
+            self.v[i].append(nn.Linear(conv_out_size, conv_out_size))
+            self.v[i].append(
+                nn.ModuleList([
+                    nn.Linear(self.nhidden, self.nhidden),
+                    nn.Linear(self.nhidden, self.nhidden)
+                ]))
 
             # alpha
             self.alpha.append(nn.ParameterList())
@@ -58,17 +65,15 @@ class PNNColumn(nn.Module):
                 nn.Parameter(
                     torch.Tensor(np.array(np.random.choice([1e0, 1e-1,
                                                             1e-2]))))
-                for _ in range(3)
+                for _ in range(self.nlayers)
             ])
-            self.alpha[i].append(
-                nn.Parameter(torch.Tensor(1), requires_grad=False))
 
             # lateral connection
             self.u.append(nn.ModuleList())
             self.u[i].append(nn.Identity())
             self.u[i].extend([
                 nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1)
-                for _ in range(3)
+                for _ in range(self.nlayers - 3)
             ])
             self.u[i].append(nn.Linear(conv_out_size, self.nhidden))
             self.u[i].append(
@@ -84,6 +89,11 @@ class PNNColumn(nn.Module):
                                                      1e-2)
 
         for i in range(self.cid):
+            self.v[i][-1][0].weight.data = self._normalized(
+                self.v[i][-1][0].weight.data)
+            self.v[i][-1][1].weight.data = self._normalized(
+                self.v[i][-1][1].weight.data, 1e-2)
+
             self.u[i][-1][0].weight.data = self._normalized(
                 self.u[i][-1][0].weight.data)
             self.u[i][-1][1].weight.data = self._normalized(
@@ -108,24 +118,26 @@ class PNNColumn(nn.Module):
             # summing over for all networks from previous cols
             # u[k][i]: u network for ith layer kth column
             u_out = [
-                self.u[k][i](F.relu(self.v[k][i](self.alpha[k][i] *
-                                                 (pre_out[k][i]))))
+                self.u[k][i](self._activate(self.v[k][i](self.alpha[k][i] *
+                                                         (pre_out[k][i]))))
                 if self.cid and i else torch.zeros(w_out.shape)
                 for k in range(self.cid)
             ]
-            w_out = F.relu(w_out + sum(u_out))
+            w_out = self._activate(w_out + sum(u_out))
             next_out.append(w_out)
 
         # last layer
         critic_out = self.w[-1][0](w_out)
         pre_critic_out = [
-            self.u[k][-1][0](pre_out[k][self.nlayers - 1])
+            self.u[k][-1][0](self._activate(self.v[k][-1][0](
+                self.alpha[k][-2] * pre_out[k][self.nlayers - 1])))
             if self.cid else torch.zeros(critic_out.shape)
             for k in range(self.cid)
         ]
         actor_out = self.w[-1][1](w_out)
         pre_actor_out = [
-            self.u[k][-1][1](pre_out[k][self.nlayers - 1])
+            self.u[k][-1][1](self._activate(self.v[k][-1][1](
+                self.alpha[k][-1] * pre_out[k][self.nlayers - 1])))
             if self.cid else torch.zeros(actor_out.shape)
             for k in range(self.cid)
         ]
@@ -135,6 +147,9 @@ class PNNColumn(nn.Module):
                actor_out + sum(pre_actor_out), \
                next_out
         #  return critic_out, actor_out, next_out
+
+    def _activate(self, x):
+        return F.elu(x)
 
     def _normalized(self, weights, std=1.0):
         output = torch.randn(weights.size())
@@ -156,8 +171,9 @@ class PNNColumn(nn.Module):
 
 class PNN(nn.Module):
     """Progressive Neural Network"""
-    def __init__(self, allenvs):
+    def __init__(self, allenvs, shared=None):
         super(PNN, self).__init__()
+        self.shared = shared
         # current column index
         self.current = 0
         # complete network
@@ -190,6 +206,12 @@ class PNN(nn.Module):
         """freeze previous columns"""
         self.current += 1
 
+        if self.shared is not None:
+            self.shared.value = self.current
+
+        if self.current >= len(self.columns):
+            return
+
         # freeze previous columns
         for i in range(self.current + 1):
             for params in self.columns[i].parameters():
@@ -201,7 +223,6 @@ class PNN(nn.Module):
         # diable those constant parameters
         for i in range(self.current):
             self.columns[self.current].alpha[i][0].requires_grad = False
-            self.columns[self.current].alpha[i][-1].requires_grad = False
 
     def parameters(self, cid=None):
         """return parameters of the current column"""

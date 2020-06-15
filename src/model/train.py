@@ -10,7 +10,7 @@ from model.pnn import PNN
 from common.env import create_env
 
 
-def train(pid, opt, gmodel, optimizer, lock, save=False):
+def train(pid, opt, current, gmodel, optimizer, lock, save=False):
     torch.manual_seed(opt.seed + pid)
     writer = SummaryWriter(opt.log_path)
     allenvs = create_env(opt)
@@ -92,12 +92,12 @@ def train(pid, opt, gmodel, optimizer, lock, save=False):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(lmodel.parameters(cid), opt.clip)
 
-            # move to next environment if global model is ahea
-            if lmodel.current < gmodel.current:
-                break
-
             # 5. worker updates global network with gradients
             with lock:
+                # move to next environment if global model is ahead
+                if lmodel.current < current.value:
+                    break
+
                 for lparams, gparams in zip(lmodel.parameters(cid),
                                             gmodel.parameters(cid)):
                     if gparams.grad is not None:

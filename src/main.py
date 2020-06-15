@@ -6,13 +6,15 @@ from pprint import pformat
 
 from tqdm import auto
 
+import numpy as np
+
 import torch
 import torch.multiprocessing as mp
 
 from model.pnn import PNN
-from model.optimizer import GlobalAdam
-from model.train import train
 from model.test import test
+from model.train import train
+from model.optimizer import GlobalAdam
 
 from common.env import create_env
 from common.params import Parameters
@@ -36,7 +38,9 @@ if __name__ == "__main__":
 
     # for evaluation use
     allenvs = create_env(opt)
-    gmodel = PNN(allenvs)
+    # keep track of current column
+    current = mp.Value('i', 0)
+    gmodel = PNN(allenvs, current)
 
     gmodel.share_memory()
     if opt.load:
@@ -57,7 +61,7 @@ if __name__ == "__main__":
 
     for pid in range(opt.nprocesses):
         process = mp.Process(target=train,
-                             args=(pid, opt, gmodel, optimizer, lock,
+                             args=(pid, opt, current, gmodel, optimizer, lock,
                                    True if not pid else False))
         process.start()
         processes.append(process)
