@@ -13,7 +13,7 @@ def gen_stats(data):
 
 def get_threshold(env_name):
     if 'Pong' in env_name:
-        return -18
+        return 18
     elif 'Riverraid' in env_name:
         return 14000
     elif 'Boxing' in env_name:
