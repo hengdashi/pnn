@@ -16,7 +16,8 @@ def create_env(opt):
     if opt.envs == 'pong':
         if opt.ncolumns == 1:
             envs = [
-                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4')))
+                NormalizedEnv(
+                    AtariRescale(PongHFlip(gym.make('PongDeterministic-v4'))))
             ]
         elif opt.ncolumns == 2:
             envs = [
@@ -66,7 +67,7 @@ class AtariRescale(gym.ObservationWrapper):
         frame = cv2.resize(frame, (84, 84))
         # take mean of three rgb values
         # frame would be turned to grayscale
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)[:, :, np.newaxis]
         frame = frame.astype(np.float32)
         # normalize to [0, 1] range
         frame *= (1.0 / 255.0)
@@ -106,7 +107,7 @@ class PongHFlip(gym.Wrapper):
 
     def reset(self):
         observation = self.env.reset()
-        cv2.flip(observation, 1)
+        observation = cv2.flip(observation, 1)
         return observation
 
     def step(self, action):
@@ -115,7 +116,7 @@ class PongHFlip(gym.Wrapper):
         elif action == 3 or action == 5:
             action = 4
         observation, reward, done, info = self.env.step(action)
-        cv2.flip(observation, 1)
+        observation = cv2.flip(observation, 1)
         return observation, reward, done, info
 
     def render(self):
