@@ -14,7 +14,7 @@ from common.env import create_env
 from common.utils import get_threshold
 
 
-def test(pid, opt, gmodel, lock):
+def test(pid, opt, gmodel):
     torch.manual_seed(opt.seed + pid)
     writer = SummaryWriter(opt.log_path)
     allenvs = create_env(opt)
@@ -36,8 +36,9 @@ def test(pid, opt, gmodel, lock):
         for episode in iterator:
             step += 1
             if done:
-                with lock:
-                    lmodel.load_state_dict(gmodel.state_dict())
+                lmodel.load_state_dict(gmodel.state_dict())
+                if not episode % opt.interval and episode:
+                    torch.save(lmodel.state_dict(), opt.save_path / "pnn")
 
             with torch.no_grad():
                 _, logits = lmodel(state.unsqueeze(0))
@@ -70,8 +71,7 @@ def test(pid, opt, gmodel, lock):
 
                 # time to move on
                 if weighted > get_threshold(env.unwrapped.spec.id):
-                    with lock:
-                        gmodel.freeze()
+                    gmodel.freeze()
                     break
 
         # freeze local model

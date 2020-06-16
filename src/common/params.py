@@ -25,8 +25,8 @@ class Parameters:
         self.clip = 40
         # number of local steps (default: 4)
         self.nlsteps = 20
-        # number of global steps (default: 1e6)
-        self.ngsteps = 1e6
+        # number of global steps (default: 4e7)
+        self.ngsteps = 4e7
         # number of processes (default: 16)
         self.nprocesses = 16
         # number of steps between saving (default: 500)

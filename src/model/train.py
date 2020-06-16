@@ -10,7 +10,7 @@ from model.pnn import PNN
 from common.env import create_env
 
 
-def train(pid, opt, current, gmodel, optimizer, lock, save=False):
+def train(pid, opt, current, gmodel, optimizer):
     torch.manual_seed(opt.seed + pid)
     writer = SummaryWriter(opt.log_path)
     allenvs = create_env(opt)
@@ -27,13 +27,8 @@ def train(pid, opt, current, gmodel, optimizer, lock, save=False):
         step, done = 0, True
         # number of total steps locally
         for episode in range(int(opt.ngsteps / opt.nlsteps)):
-            if save and not episode % opt.interval and episode:
-                with lock:
-                    torch.save(gmodel.state_dict(), opt.save_path / "pnn")
-
             # 1. worker reset to global network
-            with lock:
-                lmodel.load_state_dict(gmodel.state_dict())
+            lmodel.load_state_dict(gmodel.state_dict())
 
             log_probs, values, rewards, entropies = [], [], [], []
 
@@ -93,18 +88,17 @@ def train(pid, opt, current, gmodel, optimizer, lock, save=False):
             torch.nn.utils.clip_grad_norm_(lmodel.parameters(cid), opt.clip)
 
             # 5. worker updates global network with gradients
-            with lock:
-                # move to next environment if global model is ahead
-                if lmodel.current < current.value:
+            # move to next environment if global model is ahead
+            if lmodel.current < current.value:
+                break
+
+            for lparams, gparams in zip(lmodel.parameters(cid),
+                                        gmodel.parameters(cid)):
+                if gparams.grad is not None:
                     break
+                gparams._grad = lparams.grad
 
-                for lparams, gparams in zip(lmodel.parameters(cid),
-                                            gmodel.parameters(cid)):
-                    if gparams.grad is not None:
-                        break
-                    gparams._grad = lparams.grad
-
-                optimizer.step()
+            optimizer.step()
 
             # TIME TO LOG DATA
             writer.add_scalar(f"Train_{pid}/Loss", loss, episode)

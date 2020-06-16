@@ -20,9 +20,9 @@ def create_env(opt):
             ]
         elif opt.ncolumns == 2:
             envs = [
-                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4'))),
                 NormalizedEnv(
-                    PongHFlip(AtariRescale(gym.make('PongDeterministic-v4'))))
+                    PongNoisy(AtariRescale(gym.make('PongDeterministic-v4')))),
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4')))
             ]
         elif opt.ncolumns == 3:
             envs = [
