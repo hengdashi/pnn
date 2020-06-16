@@ -10,7 +10,7 @@ from model.pnn import PNN
 from common.env import create_env
 
 
-def train(pid, opt, current, gmodel, optimizer, lock):
+def train(pid, opt, current, gmodel, optimizer):
     torch.manual_seed(opt.seed + pid)
     writer = SummaryWriter(opt.log_path)
     allenvs = create_env(opt)
@@ -81,10 +81,10 @@ def train(pid, opt, current, gmodel, optimizer, lock):
                 actor_loss -= opt.beta * entropies[i] + \
                               log_probs[i] * gae.detach()
 
+            # TODO: this sets local OR global model grad to be zero ??
+            optimizer.zero_grad()
             # 4. local model gets gradients from losses
             loss = actor_loss + opt.critic_loss_coef * critic_loss
-            # set local model grad to be zero
-            lmodel.zero_grad()
             # back prop
             loss.backward()
             torch.nn.utils.clip_grad_norm_(lmodel.parameters(cid), opt.clip)
@@ -93,20 +93,18 @@ def train(pid, opt, current, gmodel, optimizer, lock):
             if lmodel.current < current.value:
                 break
 
-            with lock:
-                # set global model grad to be zero
-                optimizer.zero_grad()
-                # 5. local model updates global network with gradients
-                for lparams, gparams in zip(lmodel.parameters(cid),
-                                            gmodel.parameters(cid)):
-                    if gparams.grad is not None:
-                        break
-                    gparams._grad = lparams.grad
-                # global model moves towards minima
-                optimizer.step()
+            #  optimizer.zero_grad()
+            # 5. local model updates global network with gradients
+            for lparams, gparams in zip(lmodel.parameters(cid),
+                                        gmodel.parameters(cid)):
+                if gparams.grad is not None:
+                    break
+                gparams._grad = lparams.grad
+            # global model moves towards minima
+            optimizer.step()
 
             # TIME TO LOG DATA
-            writer.add_scalar(f"Train_{pid}/Loss", loss, episode)
+            writer.add_scalar(f"Train_{pid}_Column_{cid}/Loss", loss, episode)
             #  writer.add_scalar(f"Train_{pid}/Reward", sum(rewards), episode)
 
         # FREEZE PREVIOUS COLUMNS FOR LOCAL MODEL

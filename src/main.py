@@ -6,8 +6,6 @@ from pprint import pformat
 
 from tqdm import auto
 
-import numpy as np
-
 import torch
 import torch.multiprocessing as mp
 
@@ -52,22 +50,15 @@ if __name__ == "__main__":
 
     optimizer = GlobalAdam(gmodel.parameters(), lr=opt.lr)
 
-    lock = mp.Lock()
     processes = []
-
-    # spawning training and evaluation model
-    #  mp.spawn(fn=train,
-    #  args=(opt, current, gmodel, optimizer, lock),
-    #  nprocs=opt.nprocesses)
-    #  mp.spawn(fn=test, args=(opt, gmodel, lock))
 
     for pid in range(opt.nprocesses):
         process = mp.Process(target=train,
-                             args=(pid, opt, current, gmodel, optimizer, lock))
+                             args=(pid, opt, current, gmodel, optimizer))
         process.start()
         processes.append(process)
 
-    process = mp.Process(target=test, args=(opt.nprocesses, opt, gmodel, lock))
+    process = mp.Process(target=test, args=(opt.nprocesses, opt, gmodel))
     process.start()
     processes.append(process)
 

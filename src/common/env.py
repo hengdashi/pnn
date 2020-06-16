@@ -66,7 +66,7 @@ class AtariRescale(gym.ObservationWrapper):
         frame = cv2.resize(frame, (84, 84))
         # take mean of three rgb values
         # frame would be turned to grayscale
-        frame = frame.mean(2, keepdims=True)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         frame = frame.astype(np.float32)
         # normalize to [0, 1] range
         frame *= (1.0 / 255.0)
@@ -106,7 +106,7 @@ class PongHFlip(gym.Wrapper):
 
     def reset(self):
         observation = self.env.reset()
-        observation = observation[::-1]
+        cv2.flip(observation, 1)
         return observation
 
     def step(self, action):
@@ -114,9 +114,9 @@ class PongHFlip(gym.Wrapper):
             action = 3
         elif action == 3 or action == 5:
             action = 4
-        observation, reward, done, _ = self.env.step(action)
-        observation = observation[::-1]
-        return observation, reward, done, _
+        observation, reward, done, info = self.env.step(action)
+        cv2.flip(observation, 1)
+        return observation, reward, done, info
 
     def render(self):
         self.env.render()
@@ -136,9 +136,9 @@ class PongNoisy(gym.Wrapper):
         return observation
 
     def step(self, action):
-        observation, reward, done, _ = self.env.step(action)
+        observation, reward, done, info = self.env.step(action)
         observation = util.random_noise(observation, mode='gaussian', seed=1)
-        return observation, reward, done, _
+        return observation, reward, done, info
 
     def render(self):
         self.env.render()
@@ -158,9 +158,9 @@ class PongZoom(gym.Wrapper):
         return observation
 
     def step(self, action):
-        observation, reward, done, _ = self.env.step(action)
+        observation, reward, done, info = self.env.step(action)
         observation = cv2_clipped_zoom(observation, 0.75)
-        return observation, reward, done, _
+        return observation, reward, done, info
 
     def render(self):
         self.env.render()
