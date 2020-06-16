@@ -8,7 +8,7 @@ class Parameters:
     def __init__(self):
         self.cwd = Path(__file__).absolute().parents[1]
         # environment set (options: pong, atari)
-        self.envs = 'pong'
+        self.envs = 'atari'
         # number of columns in PNN (default: 1)
         self.ncolumns = 1
         # learning rate (default: 1e-4)

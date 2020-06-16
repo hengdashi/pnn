@@ -16,8 +16,7 @@ def create_env(opt):
     if opt.envs == 'pong':
         if opt.ncolumns == 1:
             envs = [
-                NormalizedEnv(
-                    AtariRescale(PongHFlip(gym.make('PongDeterministic-v4'))))
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4')))
             ]
         elif opt.ncolumns == 2:
             envs = [
@@ -29,15 +28,14 @@ def create_env(opt):
             envs = [
                 NormalizedEnv(
                     PongNoisy(AtariRescale(gym.make('PongDeterministic-v4')))),
+                NormalizedEnv(AtariRescale(gym.make('PongDeterministic-v4'))),
                 NormalizedEnv(
-                    AtariRescale(PongHFlip(gym.make('PongDeterministic-v4')))),
-                NormalizedEnv(
-                    AtariRescale(PongZoom(gym.make('PongDeterministic-v4'))))
+                    AtariRescale(PongHFlip(gym.make('PongDeterministic-v4'))))
             ]
     elif opt.envs == 'atari':
         if opt.ncolumns == 1:
             envs = [
-                NormalizedEnv(AtariRescale(gym.make('AlienDeterministic-v4')))
+                NormalizedEnv(AtariRescale(gym.make('BoxingDeterministic-v4')))
             ]
         elif opt.ncolumns == 2:
             envs = [
@@ -103,7 +101,7 @@ class PongHFlip(gym.Wrapper):
         self.env = env
         self.action_space = self.env.action_space
         self.observation_space = self.env.observation_space
-        self.unwrapped.spec.id = 'PongFlipDeterministic-v4'
+        self.unwrapped.spec.id = 'PongHFlipDeterministic-v4'
 
     def reset(self):
         observation = self.env.reset()
