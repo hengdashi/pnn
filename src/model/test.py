@@ -14,7 +14,7 @@ from common.env import create_env
 from common.utils import get_threshold
 
 
-def test(pid, opt, gmodel):
+def test(pid, opt, gmodel, lock):
     torch.manual_seed(opt.seed + pid)
     writer = SummaryWriter(opt.log_path)
     allenvs = create_env(opt)
@@ -23,7 +23,7 @@ def test(pid, opt, gmodel):
     # turn to eval mode
     lmodel.eval()
 
-    for env in allenvs:
+    for eid, env in enumerate(allenvs):
         env.seed(opt.seed + pid)
         state = torch.Tensor(env.reset())
         done = True
@@ -61,7 +61,8 @@ def test(pid, opt, gmodel):
                 weighted = opt.discount * weighted + \
                            (1 - opt.discount) * reward_sum
                 # only when this episode is done we can collect rewards
-                writer.add_scalar(f"Eval/Reward", reward_sum, episode)
+                writer.add_scalar(f"Eval Column {eid}/Reward", reward_sum,
+                                  episode)
                 progress_data = f"step: {step}, reward: {reward_sum:5.1f}, weighted: {weighted:5.1f}"
                 iterator.set_postfix_str(progress_data)
 
@@ -70,8 +71,10 @@ def test(pid, opt, gmodel):
                 state = torch.Tensor(env.reset())
 
                 # time to move on
+                # freeze parameters on global model
                 if weighted > get_threshold(env.unwrapped.spec.id):
-                    gmodel.freeze()
+                    with lock:
+                        gmodel.freeze()
                     break
 
         # freeze local model

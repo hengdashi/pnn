@@ -10,7 +10,7 @@ from model.pnn import PNN
 from common.env import create_env
 
 
-def train(pid, opt, current, gmodel, optimizer):
+def train(pid, opt, current, gmodel, optimizer, lock):
     torch.manual_seed(opt.seed + pid)
     writer = SummaryWriter(opt.log_path)
     allenvs = create_env(opt)
@@ -27,7 +27,7 @@ def train(pid, opt, current, gmodel, optimizer):
         step, done = 0, True
         # number of total steps locally
         for episode in range(int(opt.ngsteps / opt.nlsteps)):
-            # 1. worker reset to global network
+            # 1. local model resets to global network
             lmodel.load_state_dict(gmodel.state_dict())
 
             log_probs, values, rewards, entropies = [], [], [], []
@@ -42,7 +42,7 @@ def train(pid, opt, current, gmodel, optimizer):
 
                 action = prob.multinomial(num_samples=1).detach()
                 log_prob = log_prob.gather(1, action)
-                # 2. worker interacts with the environment
+                # 2. local model interacts with the environment
                 state, reward, done, _ = env.step(action.numpy())
                 state = torch.Tensor(state)
 
@@ -66,6 +66,7 @@ def train(pid, opt, current, gmodel, optimizer):
                 R = value.detach()
             values.append(R)
 
+            # 3. local model calculates the value and policy loss
             actor_loss, critic_loss = 0, 0
             gae = torch.zeros((1, 1), dtype=torch.float)
             for i in reversed(range(len(rewards))):
@@ -80,31 +81,35 @@ def train(pid, opt, current, gmodel, optimizer):
                 actor_loss -= opt.beta * entropies[i] + \
                               log_probs[i] * gae.detach()
 
-            # 3. worker calculates the value and policy loss
-            optimizer.zero_grad()
-            # 4. worker gets gradients from losses
+            # 4. local model gets gradients from losses
             loss = actor_loss + opt.critic_loss_coef * critic_loss
+            # set local model grad to be zero
+            lmodel.zero_grad()
+            # back prop
             loss.backward()
             torch.nn.utils.clip_grad_norm_(lmodel.parameters(cid), opt.clip)
 
-            # 5. worker updates global network with gradients
             # move to next environment if global model is ahead
             if lmodel.current < current.value:
                 break
 
-            for lparams, gparams in zip(lmodel.parameters(cid),
-                                        gmodel.parameters(cid)):
-                if gparams.grad is not None:
-                    break
-                gparams._grad = lparams.grad
-
-            optimizer.step()
+            with lock:
+                # set global model grad to be zero
+                optimizer.zero_grad()
+                # 5. local model updates global network with gradients
+                for lparams, gparams in zip(lmodel.parameters(cid),
+                                            gmodel.parameters(cid)):
+                    if gparams.grad is not None:
+                        break
+                    gparams._grad = lparams.grad
+                # global model moves towards minima
+                optimizer.step()
 
             # TIME TO LOG DATA
             writer.add_scalar(f"Train_{pid}/Loss", loss, episode)
             #  writer.add_scalar(f"Train_{pid}/Reward", sum(rewards), episode)
 
-        # FREEZE PREVIOUS COLUMNS
+        # FREEZE PREVIOUS COLUMNS FOR LOCAL MODEL
         lmodel.freeze()
 
     print(f"Training process {pid} terminated")

@@ -52,16 +52,24 @@ if __name__ == "__main__":
 
     optimizer = GlobalAdam(gmodel.parameters(), lr=opt.lr)
 
+    lock = mp.Lock()
     processes = []
 
-    process = mp.Process(target=test, args=(opt.nprocesses, opt, gmodel))
-    process.start()
-    processes.append(process)
+    # spawning training and evaluation model
+    #  mp.spawn(fn=train,
+    #  args=(opt, current, gmodel, optimizer, lock),
+    #  nprocs=opt.nprocesses)
+    #  mp.spawn(fn=test, args=(opt, gmodel, lock))
+
     for pid in range(opt.nprocesses):
         process = mp.Process(target=train,
-                             args=(pid, opt, current, gmodel, optimizer))
+                             args=(pid, opt, current, gmodel, optimizer, lock))
         process.start()
         processes.append(process)
+
+    process = mp.Process(target=test, args=(opt.nprocesses, opt, gmodel, lock))
+    process.start()
+    processes.append(process)
 
     for process in processes:
         process.join()
