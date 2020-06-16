@@ -27,7 +27,7 @@ def get_threshold(env_name):
 
 
 def cv2_clipped_zoom(ori, factor):
-    h, w = ori.shape[1:]
+    h, w = ori.shape[:2]
     h_new, w_new = int(h * factor), int(w * factor)
 
     y1, x1 = max(0, h_new - h) // 2, max(0, w_new - w) // 2

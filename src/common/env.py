@@ -29,9 +29,9 @@ def create_env(opt):
                 NormalizedEnv(
                     PongNoisy(AtariRescale(gym.make('PongDeterministic-v4')))),
                 NormalizedEnv(
-                    PongHFlip(AtariRescale(gym.make('PongDeterministic-v4')))),
+                    AtariRescale(PongHFlip(gym.make('PongDeterministic-v4')))),
                 NormalizedEnv(
-                    PongZoom(AtariRescale(gym.make('PongDeterministic-v4'))))
+                    AtariRescale(PongZoom(gym.make('PongDeterministic-v4'))))
             ]
     elif opt.envs == 'atari':
         if opt.ncolumns == 1:
@@ -133,13 +133,11 @@ class PongNoisy(gym.Wrapper):
     def reset(self):
         observation = self.env.reset()
         observation = util.random_noise(observation, mode='gaussian', seed=1)
-        # observation = (observation * 255).astype('int')
         return observation
 
     def step(self, action):
         observation, reward, done, _ = self.env.step(action)
         observation = util.random_noise(observation, mode='gaussian', seed=1)
-        # observation = (observation * 255).astype('int')
         return observation, reward, done, _
 
     def render(self):
