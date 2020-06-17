@@ -27,17 +27,17 @@ def test(pid, opt, gmodel):
         env.seed(opt.seed + pid)
         state = torch.Tensor(env.reset())
         done = True
-        step, reward_sum, weighted = 0, 0, 0
+        lstep, episode, reward_sum, weighted = 0, 0, 0, 0
         actions = deque(maxlen=opt.max_actions)
 
         iterator = tqdm(range(int(opt.ngsteps)),
                         desc=env.unwrapped.spec.id,
-                        unit='episode')
-        for episode in iterator:
-            step += 1
+                        unit='step')
+        for gstep in iterator:
+            lstep += 1
             if done:
                 lmodel.load_state_dict(gmodel.state_dict())
-                if not episode % opt.interval and episode:
+                if not gstep % opt.interval and gstep:
                     torch.save(lmodel.state_dict(), opt.save_path / "pnn")
 
             with torch.no_grad():
@@ -50,7 +50,7 @@ def test(pid, opt, gmodel):
             reward_sum += reward
 
             actions.append(action[0, 0])
-            if step > opt.ngsteps or \
+            if gstep > opt.ngsteps or \
                actions.count(actions[0]) == actions.maxlen:
                 done = True
 
@@ -58,15 +58,16 @@ def test(pid, opt, gmodel):
                 env.render()
 
             if done:
+                episode += 1
                 weighted = opt.discount * weighted + \
                            (1 - opt.discount) * reward_sum
                 # only when this episode is done we can collect rewards
                 writer.add_scalar(f"Eval Column {cid}/Reward", reward_sum,
-                                  episode)
-                progress_data = f"step: {step}, reward: {reward_sum:5.1f}, weighted: {weighted:5.1f}"
+                                  gstep)
+                progress_data = f"step: {lstep}, episode: {episode}, reward: {reward_sum:5.1f}, weighted: {weighted:5.1f}"
                 iterator.set_postfix_str(progress_data)
 
-                step, reward_sum = 0, 0
+                lstep, reward_sum = 0, 0
                 actions.clear()
                 state = torch.Tensor(env.reset())
 

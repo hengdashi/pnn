@@ -24,9 +24,9 @@ def train(pid, opt, current, gmodel, optimizer):
         # get state
         state = torch.Tensor(env.reset())
 
-        step, done = 0, True
+        lstep, done = 0, True
         # number of total steps locally
-        for episode in range(int(opt.ngsteps / opt.nlsteps)):
+        for gstep in range(int(opt.ngsteps / opt.nlsteps)):
             # 1. local model resets to global network
             lmodel.load_state_dict(gmodel.state_dict())
 
@@ -34,7 +34,9 @@ def train(pid, opt, current, gmodel, optimizer):
 
             # interacting for n local steps
             for _ in range(opt.nlsteps):
-                step += 1
+                lstep += 1
+                # unsqueeze is needed since image is 3d but conv needs 4d input
+                # (N, C, H, W)
                 value, logits = lmodel(state.unsqueeze(0))
                 prob = F.softmax(logits, dim=-1)
                 log_prob = F.log_softmax(logits, dim=-1)
@@ -42,6 +44,7 @@ def train(pid, opt, current, gmodel, optimizer):
 
                 action = prob.multinomial(num_samples=1).detach()
                 log_prob = log_prob.gather(1, action)
+
                 # 2. local model interacts with the environment
                 state, reward, done, _ = env.step(action.numpy())
                 state = torch.Tensor(state)
@@ -54,9 +57,9 @@ def train(pid, opt, current, gmodel, optimizer):
                 rewards.append(reward)
                 entropies.append(entropy)
 
-                done = True if step > opt.ngsteps else done
+                done = True if lstep > opt.ngsteps else done
                 if done:
-                    step = 0
+                    lstep = 0
                     state = torch.Tensor(env.reset())
                     break
 
@@ -81,10 +84,11 @@ def train(pid, opt, current, gmodel, optimizer):
                 actor_loss -= opt.beta * entropies[i] + \
                               log_probs[i] * gae.detach()
 
-            # TODO: this sets local OR global model grad to be zero ??
-            optimizer.zero_grad()
-            # 4. local model gets gradients from losses
             loss = actor_loss + opt.critic_loss_coef * critic_loss
+
+            # TODO: this sets local OR global model grad to be zero ??
+            # 4. local model gets gradients from losses
+            optimizer.zero_grad()
             # back prop
             loss.backward()
             torch.nn.utils.clip_grad_norm_(lmodel.parameters(cid), opt.clip)
@@ -104,8 +108,7 @@ def train(pid, opt, current, gmodel, optimizer):
             optimizer.step()
 
             # TIME TO LOG DATA
-            writer.add_scalar(f"Train_{pid}_Column_{cid}/Loss", loss, episode)
-            #  writer.add_scalar(f"Train_{pid}/Reward", sum(rewards), episode)
+            writer.add_scalar(f"Train_{pid}_Column_{cid}/Loss", loss, gstep)
 
         # FREEZE PREVIOUS COLUMNS FOR LOCAL MODEL
         lmodel.freeze()
